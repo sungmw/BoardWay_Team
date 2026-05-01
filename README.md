@@ -1,194 +1,130 @@
 # 🎲 BoardWay — 보드게임을 즐기는 가장 빠른 길
 
-> 보드게임 카페 매칭 O2O 플랫폼  
-> 원하는 장르·장소·시간대의 매치를 탐색하고, 룰 영상을 시청한 뒤, 참여 결제까지 한 번에!
+> **보드게임 카페 매칭 O2O 플랫폼**  
+> "보드게임을 즐기는 가장 빠른 길"이라는 컨셉으로, 원하는 장르·장소·시간대의 매치를 탐색하고, 룰 영상을 시청한 뒤 참여 결제(API 호출)까지 한 번에 해결하는 모바일 서비스입니다.
 
 ---
 
-## 📌 프로젝트 소개
+## 📌 주요 기능
 
-**BoardWay**는 보드게임을 함께 즐길 사람을 찾고, 보드게임 카페 매치에 참여할 수 있는 모바일 매칭 서비스입니다.
-
-### 주요 기능
-- 🔍 **매치 탐색** — 장르 / 장소 / 시간대 필터로 원하는 매치 검색
-- 📋 **매치 상세** — 게임 정보, Google Maps 지도, 참여자 매너 점수, 유튜브 룰 영상 확인
-- 💳 **참여 결제** — 룰 숙지 인증 후 매치 참여
-- 👤 **회원 시스템** — 이메일 기반 회원가입 / 로그인 / 로그아웃
+1.  🔍 **매치 탐색** — 장르 / 장소 / 시간대 필터(Bottom Sheet)로 원하는 매치 검색
+2.  📋 **매치 상세** — 게임 정보(3종), Google Maps 지도, 참여자 타임라인 & 매너 점수, 유튜브 룰 영상 확인
+3.  💳 **참여 결제** — 룰 숙지 확인 후 매치 참여 (실제 결제는 구현되지 않았으며, 참여 API 호출로 대체)
+4.  👤 **회원 시스템** — 이메일 기반 회원가입 / 로그인 / 로그아웃 상태 관리
 
 ---
 
 ## 🛠 기술 스택
 
 | 구분 | 기술 | 비고 |
-|------|------|------|
-| **Frontend** | React Native (Expo SDK 54) | 모바일 앱 (iOS / Android / Web) |
-| **Navigation** | React Navigation v6 (Native Stack) | 스택 기반 화면 전환 |
-| **Backend** | Python FastAPI | REST API 서버 |
-| **DB** | 인메모리 (Python List/Dict) | 프로토타입 단계 |
-| **영상 플레이어** | react-native-youtube-iframe | 유튜브 룰 영상 재생 |
-| **지도** | Google Maps Embed (WebView) | 매치 장소 위치 표시 |
+| :--- | :--- | :--- |
+| **Frontend** | React Native (Expo SDK 54) | iOS / Android / Web 대응 |
+| **Navigation** | React Navigation v6 | Native Stack 기반 화면 전환 |
+| **Backend** | Python FastAPI | REST API 기반 백엔드 |
+| **DB** | In-memory (Python List/Dict) | 프로토타입용 10개 매치 하드코딩 |
+| **지도** | Google Maps Embed (WebView) | 장소 위치 정보 시각화 |
+| **영상** | react-native-youtube-iframe | 유튜브 룰 설명 영상 재생 |
 
 ---
 
 ## 📁 프로젝트 구조
 
-```
+```text
 BoardWay/
 ├── backend/
-│   ├── main.py                # FastAPI 서버 (전체 API 로직)
-│   └── requirements.txt       # Python 의존성
+│   ├── main.py                # FastAPI 서버 (전체 API 로직 & 데이터)
+│   └── requirements.txt       # 백엔드 의존성 (fastapi, uvicorn 등)
 │
 └── frontend/
-    ├── App.js                 # 앱 엔트리포인트
-    ├── app.json               # Expo 설정
-    ├── package.json           # Node.js 의존성
-    └── src/
-        ├── context/
-        │   ├── AuthContext.js      # 인증 상태 관리 (로그인/회원가입/로그아웃)
-        │   └── MatchContext.js     # 매치 데이터 관리 (조회/참여)
-        ├── data/
-        │   └── mockData.json       # 목업 데이터 (백업용)
-        ├── navigation/
-        │   └── AppNavigator.js     # 화면 라우팅 설정
-        ├── screens/
-        │   ├── IntroScreen.js          # 스플래시/인트로 화면
-        │   ├── DiscoveryScreen.js       # 매치 탐색 (메인 화면)
-        │   ├── MatchDetailScreen.js     # 매치 상세 + 결제
-        │   ├── LoginScreen.js           # 로그인
-        │   └── SignUpScreen.js          # 회원가입
-        ├── theme/
-        │   ├── colors.js        # 컬러 팔레트
-        │   └── styles.js        # 공통 스타일
-        └── utils/
-            └── timeCalculator.js  # 종료 시간 계산 유틸
+    ├── App.js                 # 앱 엔트리포인트 (Provider 설정)
+    ├── src/
+    │   ├── context/
+    │   │   ├── AuthContext.js      # 로그인/가입/로그아웃 상태 관리
+    │   │   └── MatchContext.js     # 매치 데이터 로딩 및 참여 처리
+    │   ├── navigation/
+    │   │   └── AppNavigator.js     # 전체 화면 라우팅 정의
+    │   ├── screens/
+    │   │   ├── IntroScreen.js          # 스플래시 & 슬로건 애니메이션
+    │   │   ├── DiscoveryScreen.js       # 매칭 리스트 & 필터링 (메인)
+    │   │   ├── MatchDetailScreen.js     # 매치 상세 정보 & 참여 결제
+    │   │   ├── LoginScreen.js           # 이메일 로그인
+    │   │   └── SignUpScreen.js          # 이메일/닉네임 회원가입
+    │   ├── theme/
+    │   │   ├── colors.js        # 브랜드 컬러 팔레트
+    │   │   └── styles.js        # 공통 스타일 정의
+    │   └── utils/
+    │       └── timeCalculator.js  # 종료 시간(시작+2h) 자동 계산 유틸
 ```
 
 ---
 
-## 🖥 화면 흐름
+## 🖥 화면 흐름 (Flow)
 
+```text
+[IntroScreen] (2초 자동 전환)
+      │
+      ▼
+[DiscoveryScreen] (메인) ───▶ [MatchDetailScreen] (상세)
+      │                            │
+      │                     (로그인 체크)
+      │                            │
+      │                     ├── 미로그인 → [LoginScreen]
+      └─────────────────────┴── 로그인됨 → 참여 결제 모달
+                                      │
+                                [SignUpScreen] (회원가입)
 ```
-IntroScreen (스플래시 2초)
-    │
-    ▼
-DiscoveryScreen (매치 탐색 · 메인)
-    │
-    ├──→ MatchDetailScreen (매치 상세)
-    │        │
-    │        ├── 미로그인 → LoginScreen
-    │        └── 로그인됨 → 결제 모달 → 참여 완료
-    │
-    └──→ LoginScreen (로그인)
-             │
-             └──→ SignUpScreen (회원가입)
-```
-
-### 화면별 설명
-
-| 화면 | 설명 |
-|------|------|
-| **IntroScreen** | 로고 + 슬로건 페이드인 애니메이션 후 2초 뒤 메인으로 자동 이동 |
-| **DiscoveryScreen** | 장르·장소·시간대 필터(Bottom Sheet), 매치 카드 리스트, 마감/내 매치 표시 |
-| **MatchDetailScreen** | 게임 3종 목록, Google Maps 지도, 타임라인, 참여자 매너 점수, 유튜브 룰 영상, 결제 모달 |
-| **LoginScreen** | 이메일 + 비밀번호 입력, 회원가입 링크 |
-| **SignUpScreen** | 이메일, 닉네임, 비밀번호, 비밀번호 확인 입력 |
 
 ---
 
-## 🔌 API 명세
+## 🔌 API 명세 (Backend)
 
 | Method | Endpoint | 설명 |
-|--------|----------|------|
-| `GET` | `/` | 서버 상태 확인 |
+| :--- | :--- | :--- |
 | `GET` | `/matches` | 전체 매치 목록 조회 |
-| `POST` | `/signup` | 회원가입 (이메일 중복 체크) |
-| `POST` | `/login` | 로그인 (이메일 + 비밀번호 매칭) |
-| `POST` | `/matches/{match_id}/join` | 매치 참여 (정원 초과 / 중복 참여 검사) |
-
-### 매치 데이터 구조
-
-```json
-{
-  "id": "m1",
-  "games": ["스플랜더", "카탄", "루미큐브"],
-  "difficulty": "Easy",
-  "tags": ["파티/캐주얼", "초보 환영"],
-  "startTime": "19:00",
-  "ruleVideoUrls": ["https://youtu.be/..."],
-  "location": {
-    "venue": "레드버튼",
-    "branch": "강남점",
-    "address": "서울 강남구 강남대로 432"
-  },
-  "participants": [
-    { "nickname": "보드마스터", "mannerScore": 6, "isMe": false }
-  ],
-  "maxPlayers": 4
-}
-```
+| `POST` | `/signup` | 회원가입 (이메일 중복 체크 포함) |
+| `POST` | `/login` | 로그인 (이메일 & 비밀번호 검증) |
+| `POST` | `/matches/{id}/join` | 매치 참여 (정원 및 중복 참여 체크) |
 
 ---
 
-## 🎨 디자인 시스템
+## 🎨 디자인 시스템 (Theme)
 
-| 이름 | 색상 | 용도 |
-|------|------|------|
-| `primary` | `#1A2A3A` 딥 네이비 | 주요 색상, 신뢰감 |
-| `secondary` | `#FFC107` 옐로우 | 포인트 컬러 |
-| `background` | `#F5F7FA` 라이트 그레이 | 전체 배경 |
-| `surface` | `#FFFFFF` 화이트 | 카드·모달 배경 |
-| `text` | `#2C3E50` | 기본 텍스트 |
-| `textLight` | `#7F8C8D` | 보조 텍스트 |
-| `success` | `#2ECC71` 그린 | 성공 상태 |
-| `error` | `#E74C3C` 레드 | 에러 상태 |
+- **Primary**: `#1A2A3A` (딥 네이비 - 신뢰와 전문성)
+- **Secondary**: `#FFC107` (옐로우 - 포인트 컬러, 활기)
+- **Background**: `#F5F7FA` (라이트 그레이 - 시각적 편안함)
+- **Status**: Success(`#2ECC71`), Error(`#E74C3C`)
 
 ---
 
-## 🚀 실행 방법
+## 🚀 시작하기
 
-### Backend
-
+### 1. Backend 실행
 ```bash
 cd backend
 pip install -r requirements.txt
 python main.py
 ```
+> 서버는 기본적으로 `http://0.0.0.0:8000`에서 실행됩니다.
 
-> 서버가 `http://0.0.0.0:8000` 에서 실행됩니다.
-
-### Frontend
-
+### 2. Frontend 실행
 ```bash
 cd frontend
 npm install
 npx expo start
 ```
 
-> Expo 개발 서버가 실행되며, iOS/Android 시뮬레이터 또는 Expo Go 앱에서 확인할 수 있습니다.
-
-### ⚠️ API URL 설정
-
-프론트엔드가 백엔드에 연결하려면 `src/context/AuthContext.js`와 `src/context/MatchContext.js`의 `API_URL`을 자신의 로컬 IP로 변경해야 합니다:
-
-```javascript
-const API_URL = 'http://<your-local-ip>:8000';
-```
+### ⚠️ 주의사항 (API URL)
+프론트엔드(`AuthContext.js`, `MatchContext.js`)의 `API_URL` 상수를 현재 실행 중인 로컬 IP 주소로 수정해야 모바일 기기(Expo Go)에서 서버와 통신이 가능합니다.
 
 ---
 
-## 📝 현재 개발 단계
+## 📝 개발 현황 (MVP)
 
-> **프로토타입 / MVP 단계**
-
-| 항목 | 상태 |
-|------|------|
-| 매치 탐색 & 필터링 | ✅ 구현 완료 |
-| 매치 상세 (지도·영상·참여자) | ✅ 구현 완료 |
-| 회원가입 / 로그인 | ✅ 구현 완료 |
-| 매치 참여 | ✅ 구현 완료 |
-| 실제 DB 연동 | ❌ 미구현 (인메모리) |
-| JWT 토큰 인증 | ❌ 미구현 (단순 매칭) |
-| 비밀번호 해싱 | ❌ 미구현 (평문 저장) |
-| 실제 결제 연동 | ❌ 미구현 |
-| 매치 생성 기능 | ❌ 미구현 |
-| 매너 점수 평가 | ❌ 미구현 (표시만 가능) |
+- [x] 매치 탐색 및 필터링 UI/UX
+- [x] 상세 페이지 (지도, 유튜브, 참여자 리스트)
+- [x] Context API 기반 전역 상태 관리
+- [x] FastAPI 연동 (로그인/가입/참여)
+- [ ] 실제 데이터베이스 연동 (PostgreSQL 등)
+- [ ] JWT 및 보안 인증 강화
+- [ ] 실제 결제 게이트웨이 연동
+- [ ] 사용자 프로필 및 매너 점수 평가 시스템
