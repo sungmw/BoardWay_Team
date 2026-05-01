@@ -1,0 +1,432 @@
+import React, { useState, useContext } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Modal } from 'react-native';
+import { colors } from '../theme/colors';
+import { commonStyles } from '../theme/styles';
+import { MatchContext } from '../context/MatchContext';
+import { AuthContext } from '../context/AuthContext';
+
+const GENRES = ['전체', '파티/캐주얼', '전략 집중', '마피아/블러핑', '장르 혼합', '2인 전용'];
+const LOCATIONS = ['전체', '레드버튼', '홈즈앤루팡', '포퀸스'];
+const TIMES = ['전체', '오전 (12시 이전)', '오후 (12~18시)', '저녁 (18시 이후)'];
+
+export default function DiscoveryScreen({ navigation }) {
+  const [activeGenre, setActiveGenre] = useState('전체');
+  const [activeLocation, setActiveLocation] = useState('전체');
+  const [activeTime, setActiveTime] = useState('전체');
+  const [activeModal, setActiveModal] = useState(null);
+  
+  const { matches } = useContext(MatchContext);
+  const { user, logout } = useContext(AuthContext);
+
+  const matchTimeFilter = (startTime, filter) => {
+    if (filter === '전체') return true;
+    const hour = parseInt(startTime.split(':')[0], 10);
+    if (filter === '오전 (12시 이전)') return hour < 12;
+    if (filter === '오후 (12~18시)') return hour >= 12 && hour < 18;
+    if (filter === '저녁 (18시 이후)') return hour >= 18;
+    return true;
+  };
+
+  const filteredMatches = matches.filter(match => {
+    const passGenre = activeGenre === '전체' || match.tags.includes(activeGenre);
+    const passLocation = activeLocation === '전체' || match.location.venue === activeLocation;
+    const passTime = matchTimeFilter(match.startTime, activeTime);
+    return passGenre && passLocation && passTime;
+  });
+
+  const handleFilterSelect = (item) => {
+    if (activeModal === 'genre') setActiveGenre(item);
+    if (activeModal === 'location') setActiveLocation(item);
+    if (activeModal === 'time') setActiveTime(item);
+    setActiveModal(null);
+  };
+
+  const getModalData = () => {
+    if (activeModal === 'genre') return { title: '장르 선택', data: GENRES, active: activeGenre };
+    if (activeModal === 'location') return { title: '장소 선택', data: LOCATIONS, active: activeLocation };
+    if (activeModal === 'time') return { title: '시간대 선택', data: TIMES, active: activeTime };
+    return { title: '', data: [], active: '' };
+  };
+
+  const modalData = getModalData();
+
+  const renderMatchCard = ({ item }) => {
+    const isFull = item.participants.length >= item.maxPlayers;
+    const isMyMatch = user && item.participants.some(p => p.nickname === user.nickname);
+    
+    return (
+      <TouchableOpacity 
+        style={[commonStyles.card, isFull && styles.cardFull]}
+        onPress={() => !isFull && navigation.navigate('MatchDetail', { matchId: item.id })}
+        activeOpacity={isFull ? 1 : 0.8}
+      >
+        {isFull && (
+          <View style={styles.overlayFull}>
+            <Text style={styles.overlayFullText}>매치마감</Text>
+          </View>
+        )}
+        
+        <View style={styles.cardHeader}>
+          <Text style={[styles.gameName, isFull && styles.textFull]} numberOfLines={2}>
+            {item.games.join(' ➔ ')}
+          </Text>
+          {isMyMatch && (
+            <View style={styles.myMatchBadge}>
+              <Text style={styles.myMatchBadgeText}>✓ 내 매치</Text>
+            </View>
+          )}
+          <Text style={[styles.difficulty, isFull && styles.textFull]}>난이도: {item.difficulty}</Text>
+        </View>
+        
+        <View style={styles.locationContainer}>
+          <Text style={[styles.locationText, isFull && styles.textFull]}>
+            📍 {item.location.venue} {item.location.branch}
+          </Text>
+        </View>
+
+        <View style={styles.tagsContainer}>
+          {item.tags.map((tag, index) => (
+            <View key={index} style={[styles.tag, isFull && styles.tagFull]}>
+              <Text style={[styles.tagText, isFull && styles.textFull]}>{tag}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.cardFooter}>
+          <Text style={[styles.timeText, isFull && styles.textFull]}>시작: {item.startTime}</Text>
+          <Text style={[styles.playersText, isFull && styles.textFull]}>모집: {item.participants.length}/{item.maxPlayers}명</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={commonStyles.container}>
+      <View style={styles.headerContainer}>
+        <Image 
+          source={require('../../assets/slogan_white.png')} 
+          style={styles.bannerImage}
+          resizeMode="cover"
+        />
+        <View style={styles.headerTextWrap}>
+          <View style={styles.headerTopRow}>
+            <View>
+              <Text style={styles.mainTitle}>보드게임을 즐기는</Text>
+              <Text style={styles.mainTitleBold}>가장 빠른 길</Text>
+            </View>
+            {user ? (
+              <TouchableOpacity onPress={logout} style={styles.authBtn}>
+                <Text style={styles.authBtnText}>{user.nickname}님 (로그아웃)</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.authBtn}>
+                <Text style={styles.authBtnText}>로그인 해주세요 ➔</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.filterSection}>
+        <TouchableOpacity 
+          style={styles.filterDropdownBtn} 
+          onPress={() => setActiveModal('genre')}
+        >
+          <Text style={styles.filterBtnLabel}>장르 ▾</Text>
+          <Text style={styles.filterBtnValue} numberOfLines={1}>{activeGenre}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.filterDropdownBtn} 
+          onPress={() => setActiveModal('location')}
+        >
+          <Text style={styles.filterBtnLabel}>장소 ▾</Text>
+          <Text style={styles.filterBtnValue} numberOfLines={1}>{activeLocation}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.filterDropdownBtn} 
+          onPress={() => setActiveModal('time')}
+        >
+          <Text style={styles.filterBtnLabel}>시간 ▾</Text>
+          <Text style={styles.filterBtnValue} numberOfLines={1}>{activeTime}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {filteredMatches.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>조건에 맞는 매치가 없습니다.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredMatches}
+          renderItem={renderMatchCard}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      {/* 동적 Bottom Sheet 모달 */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={activeModal !== null}
+        onRequestClose={() => setActiveModal(null)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPressOut={() => setActiveModal(null)}
+        >
+          <View style={styles.bottomSheet}>
+            <View style={styles.bottomSheetHeader}>
+              <Text style={styles.bottomSheetTitle}>{modalData.title}</Text>
+            </View>
+            {modalData.data.map(item => (
+              <TouchableOpacity 
+                key={item} 
+                style={[
+                  styles.bottomSheetItem, 
+                  modalData.active === item && styles.bottomSheetItemActive
+                ]}
+                onPress={() => handleFilterSelect(item)}
+              >
+                <Text style={[
+                  styles.bottomSheetItemText,
+                  modalData.active === item && styles.bottomSheetItemTextActive
+                ]}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  headerContainer: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  bannerImage: {
+    width: '100%',
+    height: 120,
+  },
+  headerTextWrap: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  mainTitle: {
+    fontSize: 20,
+    color: colors.text,
+  },
+  mainTitleBold: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginTop: 4,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  authBtn: {
+    backgroundColor: colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  authBtnText: {
+    fontSize: 12,
+    color: colors.textLight,
+    fontWeight: 'bold',
+  },
+  filterSection: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: colors.background,
+    gap: 8,
+  },
+  filterDropdownBtn: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBtnLabel: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginBottom: 4,
+  },
+  filterBtnValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: colors.textLight,
+  },
+  listContent: {
+    paddingBottom: 24,
+  },
+  cardFull: {
+    opacity: 0.6,
+    backgroundColor: '#EAEAEA',
+  },
+  overlayFull: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderRadius: 12,
+  },
+  overlayFullText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: colors.error,
+    transform: [{ rotate: '-15deg' }],
+    textShadowColor: 'white',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    gap: 8,
+  },
+  gameName: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  myMatchBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'center',
+  },
+  myMatchBadgeText: {
+    color: '#2E7D32',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  difficulty: {
+    fontSize: 14,
+    color: colors.textLight,
+    paddingTop: 2,
+  },
+  locationContainer: {
+    marginBottom: 12,
+  },
+  locationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#34495E',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  tag: {
+    backgroundColor: colors.secondary + '30',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagFull: {
+    backgroundColor: '#CCCCCC',
+  },
+  tagText: {
+    color: '#D4A000',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  timeText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  playersText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  textFull: {
+    color: '#888888',
+  },
+  // Bottom Sheet Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingVertical: 16,
+    paddingBottom: 40,
+  },
+  bottomSheetHeader: {
+    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginBottom: 8,
+  },
+  bottomSheetTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.textLight,
+  },
+  bottomSheetItem: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  bottomSheetItemActive: {
+    backgroundColor: colors.primary + '10',
+  },
+  bottomSheetItemText: {
+    fontSize: 18,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  bottomSheetItemTextActive: {
+    color: colors.primary,
+    fontWeight: 'bold',
+  }
+});

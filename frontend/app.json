@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "BoardWay",
+    "slug": "boardway",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/slogan_white.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A2A3A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/slogan_white.png",
+        "backgroundColor": "#1A2A3A"
+      }
+    },
+    "web": {
+      "favicon": "./assets/slogan_white.png"
+    }
+  }
+}
