@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect } from 'react';
 
 export const MatchContext = createContext();
 
-const API_URL = 'http://192.168.219.124:8000';
+const API_URL = 'http://172.20.10.4:8000';
 
 // 서버 연결 실패 시 보여줄 백업 데이터
 const BACKUP_DATA = [
@@ -71,7 +71,7 @@ export const MatchProvider = ({ children }) => {
       const response = await fetch(`${API_URL}/matches/${matchId}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname, mannerScore, isMe: true }),
+        body: JSON.stringify({ nickname, mannerScore }),
       });
 
       if (response.ok) {

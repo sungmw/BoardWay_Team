@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 
 export const AuthContext = createContext();
 
-const API_URL = 'http://192.168.219.124:8000';
+const API_URL = 'http://172.20.10.4:8000';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null); // null이면 비로그인, 객체면 로그인 상태

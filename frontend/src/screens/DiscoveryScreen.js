@@ -1,12 +1,13 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Alert, SafeAreaView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 
 const GENRES = ['전체', '파티/캐주얼', '전략 집중', '마피아/블러핑', '장르 혼합', '2인 전용'];
-const LOCATIONS = ['전체', '레드버튼', '홈즈앤루팡', '포퀸스'];
+const LOCATIONS = ['전체', '강남', '홍대', '신촌', '건대', '혜화', '잠실'];
 const TIMES = ['전체', '오전 (12시 이전)', '오후 (12~18시)', '저녁 (18시 이후)'];
 
 export default function DiscoveryScreen({ navigation }) {
@@ -29,7 +30,10 @@ export default function DiscoveryScreen({ navigation }) {
 
   const filteredMatches = matches.filter(match => {
     const passGenre = activeGenre === '전체' || match.tags.includes(activeGenre);
-    const passLocation = activeLocation === '전체' || match.location.venue === activeLocation;
+    // 주소나 지점명에 지역명이 포함되어 있는지 확인
+    const passLocation = activeLocation === '전체' || 
+                         match.location.address.includes(activeLocation) || 
+                         match.location.branch.includes(activeLocation);
     const passTime = matchTimeFilter(match.startTime, activeTime);
     return passGenre && passLocation && passTime;
   });
@@ -101,13 +105,8 @@ export default function DiscoveryScreen({ navigation }) {
   };
 
   return (
-    <View style={commonStyles.container}>
+    <SafeAreaView style={commonStyles.container}>
       <View style={styles.headerContainer}>
-        <Image 
-          source={require('../../assets/slogan_white.png')} 
-          style={styles.bannerImage}
-          resizeMode="cover"
-        />
         <View style={styles.headerTextWrap}>
           <View style={styles.headerTopRow}>
             <View>
@@ -202,7 +201,35 @@ export default function DiscoveryScreen({ navigation }) {
         </TouchableOpacity>
       </Modal>
 
-    </View>
+      {/* 하단 탭 네비게이션 바 */}
+      <View style={styles.bottomTabBar}>
+        <TouchableOpacity style={styles.tabItem}>
+          <Ionicons name="home" size={24} color={colors.primary} />
+          <Text style={[styles.tabText, { color: colors.primary }]}>홈</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('GameSearch')}>
+          <Ionicons name="search-outline" size={24} color={colors.textLight} />
+          <Text style={styles.tabText}>검색</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => Alert.alert('알림', '내가 참여한 매치들만 모아보는 기능이 추가될 예정입니다.')}>
+          <Ionicons name="list-outline" size={24} color={colors.textLight} />
+          <Text style={styles.tabText}>내 매치</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => Alert.alert('친구 & 채팅', '말씀해주신 아이디어인 함께 했던 사람 친구 추가, 검색 친구 추가, 채팅 기능이 여기에 들어갈 예정입니다!')}>
+          <Ionicons name="chatbubbles-outline" size={24} color={colors.textLight} />
+          <Text style={styles.tabText}>채팅</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => Alert.alert('알림', '내 프로필 및 매너 온도를 관리하는 공간입니다.')}>
+          <Ionicons name="person-outline" size={24} color={colors.textLight} />
+          <Text style={styles.tabText}>마이페이지</Text>
+        </TouchableOpacity>
+      </View>
+
+    </SafeAreaView>
   );
 }
 
@@ -211,14 +238,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
-  bannerImage: {
-    width: '100%',
-    height: 120,
+    paddingTop: 16,
   },
   headerTextWrap: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   mainTitle: {
     fontSize: 20,
@@ -428,5 +452,25 @@ const styles = StyleSheet.create({
   bottomSheetItemTextActive: {
     color: colors.primary,
     fontWeight: 'bold',
+  },
+  // 하단 탭바 스타일
+  bottomTabBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingBottom: 24, // 아이폰 홈바 고려
+    paddingTop: 8,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabText: {
+    fontSize: 10,
+    marginTop: 4,
+    color: colors.textLight,
+    fontWeight: '500',
   }
 });

@@ -53,9 +53,9 @@ export default function MatchDetailScreen({ route, navigation }) {
     setIsJoining(false);
     
     if (result.success) {
-      Alert.alert('결제 완료', '매치 예약이 확정되었습니다! 가장 빠른 길로 보드웨이를 즐겨보세요 🎲');
       setModalVisible(false);
-      navigation.goBack();
+      // alert 없이 확정 페이지로 이동하며 match 정보를 넘김
+      navigation.replace('MatchConfirmation', { match: match });
     } else {
       Alert.alert('참여 불가', result.message || '오류가 발생했습니다.');
     }
@@ -135,16 +135,16 @@ export default function MatchDetailScreen({ route, navigation }) {
         {/* 참여자 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>현재 참여자 정보 ({match.participants.length}/{match.maxPlayers})</Text>
-          {match.participants.map((user, index) => (
+          {match.participants.map((participant, index) => (
             <View key={index} style={styles.participantBox}>
               <View style={styles.participantNameRow}>
-                <Text style={styles.participantName}>{user.nickname}</Text>
-                {user.isMe && <Text style={styles.meBadge}>(본인)</Text>}
+                <Text style={styles.participantName}>{participant.nickname}</Text>
+                {user && user.nickname === participant.nickname && <Text style={styles.meBadge}>(본인)</Text>}
               </View>
-              {user.mannerScore >= 5 && (
+              {participant.mannerScore >= 5 && (
                 <Text style={styles.bestGuide}>⭐ 굿 매너 유저</Text>
               )}
-              {renderDice(user.mannerScore)}
+              {renderDice(participant.mannerScore)}
             </View>
           ))}
         </View>

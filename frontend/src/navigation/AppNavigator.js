@@ -5,6 +5,9 @@ import DiscoveryScreen from '../screens/DiscoveryScreen';
 import MatchDetailScreen from '../screens/MatchDetailScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import MatchConfirmationScreen from '../screens/MatchConfirmationScreen';
+import GameSearchScreen from '../screens/GameSearchScreen';
+import GameDetailScreen from '../screens/GameDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +22,13 @@ export default function AppNavigator() {
     >
       <Stack.Screen name="Intro" component={IntroScreen} />
       <Stack.Screen name="Discovery" component={DiscoveryScreen} />
+      <Stack.Screen name="GameSearch" component={GameSearchScreen} options={{ title: '게임 도감' }} />
+      <Stack.Screen name="GameDetail" component={GameDetailScreen} options={{ title: '게임 정보' }} />
+      <Stack.Screen 
+        name="MatchConfirmation" 
+        component={MatchConfirmationScreen} 
+        options={{ animation: 'fade' }} 
+      />
       <Stack.Screen 
         name="MatchDetail" 
         component={MatchDetailScreen} 
