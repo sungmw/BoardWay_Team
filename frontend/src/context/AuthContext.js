@@ -4,9 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const AuthContext = createContext();
 
-// 로컬 테스트 시에는 'http://localhost:8000' 또는 'http://10.0.2.2:8000' (안드로이드 에뮬레이터)
-// 실제 기기 테스트 시에는 서버 컴퓨터의 IP 주소를 입력해야 합니다.
-const API_URL = 'http://172.20.10.4:8000';
+import { API_URL } from '../config';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

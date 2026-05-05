@@ -2,8 +2,7 @@ import React, { createContext, useState, useEffect } from 'react';
 
 export const MatchContext = createContext();
 
-// 로컬 테스트 시에는 'http://localhost:8000'
-const API_URL = 'http://172.20.10.4:8000';
+import { API_URL } from '../config';
 
 // 서버 연결 실패 시 보여줄 백업 데이터
 const BACKUP_DATA = [

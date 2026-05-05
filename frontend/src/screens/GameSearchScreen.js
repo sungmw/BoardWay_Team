@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 
-const API_URL = 'http://172.20.10.4:8000';
+import { API_URL } from '../config';
 
 export default function GameSearchScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
