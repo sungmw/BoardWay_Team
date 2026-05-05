@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Alert, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -6,11 +6,21 @@ import { commonStyles } from '../theme/styles';
 import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 
-const GENRES = ['전체', '파티/캐주얼', '전략 집중', '마피아/블러핑', '장르 혼합', '2인 전용'];
-const LOCATIONS = ['전체', '강남', '홍대', '신촌', '건대', '혜화', '잠실'];
+const GENRES = ['전체', '입문', '전략', '파티', '추리', '마피아', '심리전', '힐링'];
+const LOCATIONS = ['전체', '강남', '홍대', '신촌', '건대', '잠실', '노원', '수원', '인천', '분당'];
 const TIMES = ['전체', '오전 (12시 이전)', '오후 (12~18시)', '저녁 (18시 이후)'];
 
 export default function DiscoveryScreen({ navigation }) {
+  // 날짜 포맷팅 헬퍼 (YYYY-MM-DD)
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // 오늘 날짜를 기본값으로 설정
+  const [activeDate, setActiveDate] = useState(formatDate(new Date()));
   const [activeGenre, setActiveGenre] = useState('전체');
   const [activeLocation, setActiveLocation] = useState('전체');
   const [activeTime, setActiveTime] = useState('전체');
@@ -18,6 +28,25 @@ export default function DiscoveryScreen({ navigation }) {
   
   const { matches } = useContext(MatchContext);
   const { user, logout } = useContext(AuthContext);
+
+  // 날짜 리스트 생성 (오늘부터 14일간)
+  const dateList = useMemo(() => {
+    const list = [];
+    const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      list.push({
+        full: formatDate(d),
+        month: d.getMonth() + 1,
+        date: d.getDate(),
+        day: weekDays[d.getDay()],
+        isToday: i === 0,
+      });
+    }
+    return list;
+  }, []);
+
 
   const matchTimeFilter = (startTime, filter) => {
     if (filter === '전체') return true;
@@ -29,13 +58,13 @@ export default function DiscoveryScreen({ navigation }) {
   };
 
   const filteredMatches = matches.filter(match => {
+    const passDate = match.date === activeDate;
     const passGenre = activeGenre === '전체' || match.tags.includes(activeGenre);
-    // 주소나 지점명에 지역명이 포함되어 있는지 확인
     const passLocation = activeLocation === '전체' || 
                          match.location.address.includes(activeLocation) || 
                          match.location.branch.includes(activeLocation);
     const passTime = matchTimeFilter(match.startTime, activeTime);
-    return passGenre && passLocation && passTime;
+    return passDate && passGenre && passLocation && passTime;
   });
 
   const handleFilterSelect = (item) => {
@@ -53,6 +82,24 @@ export default function DiscoveryScreen({ navigation }) {
   };
 
   const modalData = getModalData();
+
+  const renderDateItem = ({ item }) => (
+    <TouchableOpacity 
+      style={[
+        styles.dateItem, 
+        activeDate === item.full && styles.dateItemActive
+      ]}
+      onPress={() => setActiveDate(item.full)}
+    >
+      <Text style={[styles.dateDay, activeDate === item.full && styles.dateTextActive]}>
+        {item.day}
+      </Text>
+      <Text style={[styles.dateNumber, activeDate === item.full && styles.dateTextActive]}>
+        {item.date}
+      </Text>
+      {item.isToday && <View style={styles.todayDot} />}
+    </TouchableOpacity>
+  );
 
   const renderMatchCard = ({ item }) => {
     const isFull = item.participants.length >= item.maxPlayers;
@@ -124,6 +171,18 @@ export default function DiscoveryScreen({ navigation }) {
             )}
           </View>
         </View>
+
+        {/* 날짜 선택 섹션 */}
+        <View style={styles.dateSelectorContainer}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={dateList}
+            renderItem={renderDateItem}
+            keyExtractor={item => item.full}
+            contentContainerStyle={styles.dateListContent}
+          />
+        </View>
       </View>
 
       <View style={styles.filterSection}>
@@ -154,7 +213,8 @@ export default function DiscoveryScreen({ navigation }) {
 
       {filteredMatches.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>조건에 맞는 매치가 없습니다.</Text>
+          <Text style={styles.emptyText}>해당 날짜와 조건에 맞는 매치가 없습니다.</Text>
+          <Text style={styles.emptySubText}>다른 날짜를 선택해보세요!</Text>
         </View>
       ) : (
         <FlatList
@@ -272,6 +332,51 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     fontWeight: 'bold',
   },
+  // 날짜 선택 섹션
+  dateSelectorContainer: {
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border + '50',
+  },
+  dateListContent: {
+    paddingHorizontal: 16,
+  },
+  dateItem: {
+    width: 50,
+    height: 65,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    marginRight: 10,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dateItemActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dateDay: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginBottom: 4,
+  },
+  dateNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  dateTextActive: {
+    color: '#FFFFFF',
+  },
+  todayDot: {
+    position: 'absolute',
+    bottom: 6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+  },
   filterSection: {
     flexDirection: 'row',
     padding: 16,
@@ -308,6 +413,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: colors.textLight,
+    fontWeight: '600',
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginTop: 8,
   },
   listContent: {
     paddingBottom: 24,
@@ -474,3 +585,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   }
 });
+

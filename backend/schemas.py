@@ -12,7 +12,6 @@ class ParticipantBase(BaseModel):
     isMe: bool = False
 
 class MatchBase(BaseModel):
-    id: str
     games: List[str]
     difficulty: str
     tags: List[str]
@@ -26,6 +25,7 @@ class MatchCreate(MatchBase):
     pass
 
 class MatchResponse(MatchBase):
+    id: str # This is match_id (e.g., "m1")
     participants: List[ParticipantBase] = []
 
     class Config:
@@ -66,4 +66,4 @@ class GameBase(BaseModel):
     image: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True

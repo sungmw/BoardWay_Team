@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy.orm import Session
 import models, schemas
 from auth_utils import get_password_hash
@@ -29,25 +30,76 @@ def get_matches(db: Session):
 def get_match_by_match_id(db: Session, match_id: str):
     return db.query(models.Match).filter(models.Match.match_id == match_id).first()
 
-def join_match(db: Session, match_id: str, participant: schemas.ParticipantBase):
+def create_match(db: Session, match: schemas.MatchCreate):
+    """
+    Admin or System creates matches based on venue availability.
+    """
+    new_match_id = f"m-{str(uuid.uuid4())[:8]}"
+    db_match = models.Match(
+        match_id=new_match_id,
+        games=match.games,
+        difficulty=match.difficulty,
+        tags=match.tags,
+        date=match.date,
+        startTime=match.startTime,
+        ruleVideoUrls=match.ruleVideoUrls,
+        venue=match.location.venue,
+        branch=match.location.branch,
+        address=match.location.address,
+        maxPlayers=match.maxPlayers
+    )
+    db.add(db_match)
+    db.commit()
+    db.refresh(db_match)
+    return db_match
+
+def join_match(db: Session, match_id: str, participant_nickname: str):
     db_match = get_match_by_match_id(db, match_id)
     if not db_match:
         return None
     
     # 중복 참여 검사
     for p in db_match.participants:
-        if p.nickname == participant.nickname:
+        if p.nickname == participant_nickname:
             return "ALREADY_JOINED"
             
     if len(db_match.participants) >= db_match.maxPlayers:
         return "FULL"
         
+    user = get_user_by_nickname(db, participant_nickname)
     db_participant = models.MatchParticipant(
         match_id=db_match.id,
-        nickname=participant.nickname,
-        mannerScore=participant.mannerScore
+        nickname=participant_nickname,
+        mannerScore=user.mannerScore if user else 5
     )
     db.add(db_participant)
     db.commit()
     db.refresh(db_match)
     return db_match
+
+def leave_match(db: Session, match_id: str, nickname: str):
+    db_match = get_match_by_match_id(db, match_id)
+    if not db_match:
+        return "MATCH_NOT_FOUND"
+    
+    participant = db.query(models.MatchParticipant).filter(
+        models.MatchParticipant.match_id == db_match.id,
+        models.MatchParticipant.nickname == nickname
+    ).first()
+    
+    if not participant:
+        return "NOT_PARTICIPATING"
+    
+    db.delete(participant)
+    db.commit()
+    return "SUCCESS"
+
+def get_user_matches(db: Session, nickname: str):
+    # Matches user is participating in
+    participating_match_ids = db.query(models.MatchParticipant.match_id).filter(
+        models.MatchParticipant.nickname == nickname
+    ).all()
+    participating_match_ids = [m[0] for m in participating_match_ids]
+    
+    participating_matches = db.query(models.Match).filter(models.Match.id.in_(participating_match_ids)).all()
+    return participating_matches

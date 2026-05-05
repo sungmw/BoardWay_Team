@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -23,7 +24,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/images", StaticFiles(directory="images"), name="images")
+# 이미지 디렉토리 경로 절대 경로로 설정
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGES_DIR = os.path.join(BASE_DIR, "images")
+if not os.path.exists(IMAGES_DIR):
+    os.makedirs(IMAGES_DIR)
+
+app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -47,17 +54,22 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
         raise credentials_exception
     return user
 
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to BoardWay API Server! (DB Connected)"}
+from fastapi.responses import JSONResponse
+from fastapi import Request
 
-@app.get("/matches")
-def get_matches(db: Session = Depends(get_db)):
-    matches = crud.get_matches(db)
-    # 프론트엔드 포맷(location 객체)에 맞게 변환
-    result = []
-    for m in matches:
-        m_dict = {
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    error_details = traceback.format_exc()
+    print(error_details)
+    return JSONResponse(
+        status_code=500,
+        content={"message": "Internal Server Error", "detail": str(exc), "traceback": error_details},
+    )
+
+def format_match(m):
+    try:
+        return {
             "id": m.match_id,
             "games": m.games,
             "difficulty": m.difficulty,
@@ -73,13 +85,72 @@ def get_matches(db: Session = Depends(get_db)):
             "maxPlayers": m.maxPlayers,
             "participants": [{"nickname": p.nickname, "mannerScore": p.mannerScore, "isMe": False} for p in m.participants]
         }
-        result.append(m_dict)
-    return {"matches": result}
+    except Exception as e:
+        print(f"Error formatting match {m.id}: {e}")
+        return None
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to BoardWay API Server! (DB Connected)"}
+
+@app.get("/matches")
+def get_matches(db: Session = Depends(get_db)):
+    matches = crud.get_matches(db)
+    formatted = [format_match(m) for m in matches]
+    return {"matches": [f for f in formatted if f is not None]}
+
+@app.get("/matches/{match_id}")
+def get_match(match_id: str, db: Session = Depends(get_db)):
+    match = crud.get_match_by_match_id(db, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+    return format_match(match)
+
+# Note: In a real scenario, this would be restricted to Admin/Venues
+@app.post("/matches")
+def create_match(match: schemas.MatchCreate, db: Session = Depends(get_db)):
+    new_match = crud.create_match(db, match)
+    return format_match(new_match)
+
+# Note: In a real scenario, this would be restricted to Admin/Venues
+@app.delete("/matches/{match_id}")
+def delete_match(match_id: str, db: Session = Depends(get_db)):
+    db_match = crud.get_match_by_match_id(db, match_id)
+    if not db_match:
+        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+    db.delete(db_match)
+    db.commit()
+    return {"message": "삭제 완료"}
+
+@app.post("/matches/{match_id}/join")
+def join_match(match_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    result = crud.join_match(db, match_id, current_user.nickname)
+    if result == "ALREADY_JOINED":
+        raise HTTPException(status_code=400, detail="이미 참여가 완료된 매치입니다.")
+    elif result == "FULL":
+        raise HTTPException(status_code=400, detail="매치가 이미 가득 찼습니다.")
+    elif result is None:
+        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+        
+    return {"message": "참여 완료"}
+
+@app.delete("/matches/{match_id}/leave")
+def leave_match(match_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    result = crud.leave_match(db, match_id, current_user.nickname)
+    if result == "MATCH_NOT_FOUND":
+        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+    if result == "NOT_PARTICIPATING":
+        raise HTTPException(status_code=400, detail="참여 중인 매치가 아닙니다.")
+    return {"message": "탈퇴 완료"}
+
+@app.get("/my-matches")
+def get_my_matches(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    matches = crud.get_user_matches(db, current_user.nickname)
+    return {"matches": [format_match(m) for m in matches]}
 
 @app.get("/games")
 def get_games(db: Session = Depends(get_db)):
     games = crud.get_games(db)
-    # 프론트엔드 포맷 맞춤
     result = []
     for g in games:
         result.append({
@@ -126,18 +197,6 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
 @app.get("/me", response_model=schemas.UserResponse)
 def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
-
-@app.post("/matches/{match_id}/join")
-def join_match(match_id: str, participant: schemas.ParticipantBase, db: Session = Depends(get_db)):
-    result = crud.join_match(db, match_id, participant)
-    if result == "ALREADY_JOINED":
-        raise HTTPException(status_code=400, detail="이미 참여가 완료된 매치입니다.")
-    elif result == "FULL":
-        raise HTTPException(status_code=400, detail="매치가 이미 가득 찼습니다.")
-    elif result is None:
-        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
-        
-    return {"message": "참여 완료"}
 
 if __name__ == "__main__":
     import uvicorn
