@@ -32,6 +32,7 @@ class Match(Base):
     games = Column(JSON) # List of strings
     difficulty = Column(String)
     tags = Column(JSON)
+    date = Column(String) # YYYY-MM-DD
     startTime = Column(String)
     ruleVideoUrls = Column(JSON)
     

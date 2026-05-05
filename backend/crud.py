@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 import models, schemas
+from auth_utils import get_password_hash
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
@@ -10,7 +11,7 @@ def get_user_by_nickname(db: Session, nickname: str):
 def create_user(db: Session, user: schemas.UserCreate):
     db_user = models.User(
         email=user.email,
-        password=user.password, # 실무에서는 해싱 필요
+        password=get_password_hash(user.password),
         nickname=user.nickname,
         mannerScore=user.mannerScore
     )

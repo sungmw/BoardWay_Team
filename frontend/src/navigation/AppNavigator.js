@@ -8,6 +8,7 @@ import SignUpScreen from '../screens/SignUpScreen';
 import MatchConfirmationScreen from '../screens/MatchConfirmationScreen';
 import GameSearchScreen from '../screens/GameSearchScreen';
 import GameDetailScreen from '../screens/GameDetailScreen';
+import MyMatchesScreen from '../screens/MyMatchesScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,6 +25,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Discovery" component={DiscoveryScreen} />
       <Stack.Screen name="GameSearch" component={GameSearchScreen} options={{ title: '게임 도감' }} />
       <Stack.Screen name="GameDetail" component={GameDetailScreen} options={{ title: '게임 정보' }} />
+      <Stack.Screen name="MyMatches" component={MyMatchesScreen} />
       <Stack.Screen 
         name="MatchConfirmation" 
         component={MatchConfirmationScreen} 

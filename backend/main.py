@@ -1,11 +1,14 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List
+from jose import JWTError, jwt
 
 import models, schemas, crud
 from database import engine, get_db
+from auth_utils import verify_password, create_access_token, SECRET_KEY, ALGORITHM
 
 # 테이블 생성 (개발 편의상 앱 실행시 자동 생성)
 models.Base.metadata.create_all(bind=engine)
@@ -22,6 +25,28 @@ app.add_middleware(
 
 app.mount("/images", StaticFiles(directory="images"), name="images")
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+# 현재 로그인한 사용자 가져오기 dependency
+async def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+        token_data = schemas.TokenData(email=email)
+    except JWTError:
+        raise credentials_exception
+    user = crud.get_user_by_email(db, email=token_data.email)
+    if user is None:
+        raise credentials_exception
+    return user
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to BoardWay API Server! (DB Connected)"}
@@ -37,6 +62,7 @@ def get_matches(db: Session = Depends(get_db)):
             "games": m.games,
             "difficulty": m.difficulty,
             "tags": m.tags,
+            "date": m.date,
             "startTime": m.startTime,
             "ruleVideoUrls": m.ruleVideoUrls,
             "location": {
@@ -83,10 +109,23 @@ def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @app.post("/login")
 def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = crud.get_user_by_email(db, request.email)
-    if not user or user.password != request.password:
+    if not user or not verify_password(request.password, user.password):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 틀렸습니다.")
     
-    return {"message": "로그인 성공", "user": {"email": user.email, "nickname": user.nickname, "mannerScore": user.mannerScore}}
+    access_token = create_access_token(data={"sub": user.email})
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user": {
+            "email": user.email, 
+            "nickname": user.nickname, 
+            "mannerScore": user.mannerScore
+        }
+    }
+
+@app.get("/me", response_model=schemas.UserResponse)
+def read_users_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
 
 @app.post("/matches/{match_id}/join")
 def join_match(match_id: str, participant: schemas.ParticipantBase, db: Session = Depends(get_db)):

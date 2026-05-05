@@ -213,7 +213,7 @@ export default function DiscoveryScreen({ navigation }) {
           <Text style={styles.tabText}>검색</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => Alert.alert('알림', '내가 참여한 매치들만 모아보는 기능이 추가될 예정입니다.')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('MyMatches')}>
           <Ionicons name="list-outline" size={24} color={colors.textLight} />
           <Text style={styles.tabText}>내 매치</Text>
         </TouchableOpacity>
