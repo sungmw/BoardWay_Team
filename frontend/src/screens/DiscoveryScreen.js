@@ -278,12 +278,12 @@ export default function DiscoveryScreen({ navigation }) {
           <Text style={styles.tabText}>내 매치</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => Alert.alert('친구 & 채팅', '말씀해주신 아이디어인 함께 했던 사람 친구 추가, 검색 친구 추가, 채팅 기능이 여기에 들어갈 예정입니다!')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('ChatList')}>
           <Ionicons name="chatbubbles-outline" size={24} color={colors.textLight} />
           <Text style={styles.tabText}>채팅</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => Alert.alert('알림', '내 프로필 및 매너 온도를 관리하는 공간입니다.')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('MyPage')}>
           <Ionicons name="person-outline" size={24} color={colors.textLight} />
           <Text style={styles.tabText}>마이페이지</Text>
         </TouchableOpacity>

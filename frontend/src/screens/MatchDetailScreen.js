@@ -10,8 +10,8 @@ import { AuthContext } from '../context/AuthContext';
 
 export default function MatchDetailScreen({ route, navigation }) {
   const { matchId } = route.params;
-  const { matches, joinMatch } = useContext(MatchContext);
-  const { user } = useContext(AuthContext);
+  const { matches, joinMatch, hostMap } = useContext(MatchContext);
+  const { user, points, usePoints } = useContext(AuthContext);
   
   const match = matches.find(m => m.id === matchId);
 
@@ -19,6 +19,8 @@ export default function MatchDetailScreen({ route, navigation }) {
   const [ruleChecked, setRuleChecked] = useState(false);
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [isJoining, setIsJoining] = useState(false); // 로딩 상태 추가
+  const [selectedRole, setSelectedRole] = useState('participant'); // 'participant' or 'host'
+  const [hostGuideVisible, setHostGuideVisible] = useState(false);
 
   if (!match) return <View style={commonStyles.container}><Text>매치를 찾을 수 없습니다.</Text></View>;
 
@@ -49,7 +51,20 @@ export default function MatchDetailScreen({ route, navigation }) {
     }
 
     setIsJoining(true);
-    const result = await joinMatch(match.id, user.nickname, user.mannerScore);
+    
+    // 1. 포인트 사용 처리
+    // 방장은 50% 할인 혜택 (기본 12000P -> 6000P)
+    const cost = selectedRole === 'host' ? 6000 : 12000;
+    const pointResult = await usePoints(cost, `[${match.games.join(', ')}] 매치 참여 결제 (${selectedRole === 'host' ? '방장' : '일반'})`);
+    
+    if (!pointResult.success) {
+      setIsJoining(false);
+      Alert.alert('포인트 부족', pointResult.message || '포인트가 부족하여 참여할 수 없습니다.');
+      return;
+    }
+
+    // 2. 매치 참여 처리
+    const result = await joinMatch(match.id, user.nickname, user.mannerScore, selectedRole);
     setIsJoining(false);
     
     if (result.success) {
@@ -78,7 +93,7 @@ export default function MatchDetailScreen({ route, navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* 헤더 섹션 */}
         <View style={styles.headerSection}>
-          <Text style={styles.headerLabel}>진행 예정 보드게임 (3종)</Text>
+          <Text style={styles.headerLabel}>진행 예정 보드게임 ({match.games.length}종)</Text>
           {match.games.map((game, index) => (
             <Text key={index} style={styles.gameName}>
               {index + 1}. {game}
@@ -152,7 +167,7 @@ export default function MatchDetailScreen({ route, navigation }) {
         {/* 룰 영상 섹션 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>룰 숙지 인증 📺</Text>
-          <Text style={styles.ruleSubText}>가장 바른 즐거움을 위해 아래 3가지 게임의 룰을 모두 숙지해주세요.</Text>
+          <Text style={styles.ruleSubText}>가장 바른 즐거움을 위해 아래 {match.games.length}가지 게임의 룰을 모두 숙지해주세요.</Text>
           
           <View style={styles.videoTabs}>
             {match.games.map((game, index) => (
@@ -215,7 +230,57 @@ export default function MatchDetailScreen({ route, navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>매치 참여 확인</Text>
+            <Text style={styles.modalTitle}>매치 참여 결제 확인</Text>
+            
+            <View style={styles.paymentInfoBox}>
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>내 보유 포인트</Text>
+                <Text style={styles.paymentValue}>{points.toLocaleString()} P</Text>
+              </View>
+              
+              {/* 참여 유형 선택 */}
+              <View style={styles.roleSelectionContainer}>
+                <Text style={styles.roleTitle}>참여 유형 선택</Text>
+                <View style={styles.roleButtons}>
+                  <TouchableOpacity 
+                    style={[styles.roleBtn, selectedRole === 'participant' && styles.roleBtnActive]}
+                    onPress={() => setSelectedRole('participant')}
+                  >
+                    <Text style={[styles.roleBtnText, selectedRole === 'participant' && styles.roleBtnTextActive]}>일반 참여</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[
+                      styles.roleBtn, 
+                      selectedRole === 'host' && styles.roleBtnActive,
+                      hostMap[match.id] && styles.roleBtnDisabled
+                    ]}
+                    onPress={() => {
+                      if (hostMap[match.id]) {
+                        Alert.alert('알림', '이미 다른 방장이 신청된 매치입니다.');
+                      } else {
+                        setSelectedRole('host');
+                        setHostGuideVisible(true);
+                      }
+                    }}
+                    disabled={!!hostMap[match.id]}
+                  >
+                    <Text style={[styles.roleBtnText, selectedRole === 'host' && styles.roleBtnTextActive]}>방장 참여 (-50%)</Text>
+                  </TouchableOpacity>
+                </View>
+                {!!hostMap[match.id] && <Text style={styles.hostStatusText}>방장: {hostMap[match.id]}님 선점 완료</Text>}
+              </View>
+
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>차감 예정 포인트</Text>
+                <Text style={[styles.paymentValue, { color: colors.error }]}>
+                  - {(selectedRole === 'host' ? 6000 : 12000).toLocaleString()} P
+                </Text>
+              </View>
+              <View style={[styles.paymentRow, styles.paymentTotalRow]}>
+                <Text style={styles.paymentTotalLabel}>결제 후 잔액</Text>
+                <Text style={styles.paymentTotalValue}>{(points - (selectedRole === 'host' ? 6000 : 12000)).toLocaleString()} P</Text>
+              </View>
+            </View>
             
             <TouchableOpacity 
               style={styles.checkboxContainer}
@@ -224,7 +289,7 @@ export default function MatchDetailScreen({ route, navigation }) {
               <View style={[styles.checkbox, ruleChecked && styles.checkboxChecked]}>
                 {ruleChecked && <Text style={styles.checkmark}>✓</Text>}
               </View>
-              <Text style={styles.checkboxText}>3가지 게임의 룰을 모두 숙지했습니다.</Text>
+              <Text style={styles.checkboxText}>{match.games.length}가지 게임의 룰을 모두 숙지했습니다.</Text>
             </TouchableOpacity>
 
             <View style={styles.modalButtons}>
@@ -242,6 +307,38 @@ export default function MatchDetailScreen({ route, navigation }) {
                 <Text style={styles.payButtonText}>{isJoining ? "처리중..." : "결제하기"}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 방장 가이드 모달 */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={hostGuideVisible}
+        onRequestClose={() => setHostGuideVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.guideContent}>
+            <Text style={styles.guideTitle}>👑 방장의 역할 및 혜택</Text>
+            <View style={styles.guideItem}>
+              <Text style={styles.guideLabel}>1. 게임 룰 숙지 및 설명</Text>
+              <Text style={styles.guideText}>참여자들이 게임을 즐겁게 즐길 수 있도록 미리 룰을 완벽히 숙지하고 현장에서 설명해 주세요.</Text>
+            </View>
+            <View style={styles.guideItem}>
+              <Text style={styles.guideLabel}>2. 매너 있는 진행</Text>
+              <Text style={styles.guideText}>매치 분위기를 리드하며 모든 참여자가 소외되지 않게 도와주세요.</Text>
+            </View>
+            <View style={styles.guideItem}>
+              <Text style={styles.guideLabel}>🎁 방장 혜택</Text>
+              <Text style={styles.guideText}>참여 포인트 50% 선할인 혜택을 드립니다. 매치 종료 후 리뷰 점수가 4.0 이상일 경우 추가 보너스가 지급됩니다!</Text>
+            </View>
+            <TouchableOpacity 
+              style={[commonStyles.button, { marginTop: 20 }]}
+              onPress={() => setHostGuideVisible(false)}
+            >
+              <Text style={commonStyles.buttonText}>역할을 확인했습니다</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -456,7 +553,122 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.primary,
+    marginBottom: 16,
+  },
+  paymentInfoBox: {
+    backgroundColor: colors.background,
+    padding: 16,
+    borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  paymentLabel: {
+    fontSize: 14,
+    color: colors.textLight,
+  },
+  paymentValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  paymentTotalRow: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginBottom: 0,
+  },
+  paymentTotalLabel: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  paymentTotalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  roleSelectionContainer: {
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    marginVertical: 12,
+  },
+  roleTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 10,
+  },
+  roleButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  roleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+  },
+  roleBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  roleBtnDisabled: {
+    backgroundColor: '#F5F5F5',
+    opacity: 0.5,
+  },
+  roleBtnText: {
+    fontSize: 13,
+    color: colors.textLight,
+    fontWeight: '600',
+  },
+  roleBtnTextActive: {
+    color: colors.primary,
+  },
+  hostStatusText: {
+    fontSize: 11,
+    color: colors.error,
+    marginTop: 6,
+    textAlign: 'right',
+  },
+  guideContent: {
+    backgroundColor: colors.surface,
+    width: '85%',
+    borderRadius: 20,
+    padding: 24,
+    ...commonStyles.shadow,
+  },
+  guideTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  guideItem: {
+    marginBottom: 16,
+  },
+  guideLabel: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  guideText: {
+    fontSize: 14,
+    color: colors.textLight,
+    lineHeight: 20,
   },
   checkboxContainer: {
     flexDirection: 'row',

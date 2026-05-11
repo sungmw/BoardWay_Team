@@ -71,6 +71,10 @@ export const AuthProvider = ({ children }) => {
         setToken(userToken);
         setUser(userData);
         
+        // 유저가 바뀌었으므로 포인트 초기화 (나중에 백엔드 연동 시 DB에서 가져올 부분)
+        setPoints(0);
+        setPointHistory([]);
+        
         await AsyncStorage.setItem('userToken', userToken);
         return true;
       } else {
@@ -113,14 +117,94 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const [points, setPoints] = useState(0);
+  const [pointHistory, setPointHistory] = useState([]);
+
+  // 유저가 로그인하거나 변경될 때 해당 유저의 포인트 데이터 로드
+  useEffect(() => {
+    if (user) {
+      loadUserPointData(user.email);
+    } else {
+      setPoints(0);
+      setPointHistory([]);
+    }
+  }, [user]);
+
+  const loadUserPointData = async (email) => {
+    try {
+      const storedPoints = await AsyncStorage.getItem(`points_${email}`);
+      const storedHistory = await AsyncStorage.getItem(`history_${email}`);
+      
+      setPoints(storedPoints ? parseInt(storedPoints, 10) : 0);
+      setPointHistory(storedHistory ? JSON.parse(storedHistory) : []);
+    } catch (e) {
+      console.error('Failed to load point data', e);
+    }
+  };
+
+  const rechargePoints = async (amount) => {
+    if (!user) return false;
+
+    const newPoints = points + amount;
+    const historyItem = {
+      id: Date.now().toString(),
+      type: '충전',
+      amount: amount,
+      date: new Date().toISOString(),
+      description: '포인트 충전',
+    };
+    const newHistory = [historyItem, ...pointHistory];
+
+    setPoints(newPoints);
+    setPointHistory(newHistory);
+
+    try {
+      await AsyncStorage.setItem(`points_${user.email}`, newPoints.toString());
+      await AsyncStorage.setItem(`history_${user.email}`, JSON.stringify(newHistory));
+      return true;
+    } catch (e) {
+      console.error('Failed to save point data', e);
+      return false;
+    }
+  };
+
+  const usePoints = async (amount, description) => {
+    if (!user) return { success: false, message: '로그인이 필요합니다.' };
+    if (points < amount) return { success: false, message: '포인트가 부족합니다.' };
+
+    const newPoints = points - amount;
+    const historyItem = {
+      id: Date.now().toString(),
+      type: '사용',
+      amount: amount,
+      date: new Date().toISOString(),
+      description: description,
+    };
+    const newHistory = [historyItem, ...pointHistory];
+
+    setPoints(newPoints);
+    setPointHistory(newHistory);
+
+    try {
+      await AsyncStorage.setItem(`points_${user.email}`, newPoints.toString());
+      await AsyncStorage.setItem(`history_${user.email}`, JSON.stringify(newHistory));
+      return { success: true };
+    } catch (e) {
+      console.error('Failed to save point data', e);
+      return { success: false, message: '저장 오류가 발생했습니다.' };
+    }
+  };
+
   const logout = async () => {
     setUser(null);
     setToken(null);
+    setPoints(0);
+    setPointHistory([]);
     await AsyncStorage.removeItem('userToken');
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, points, pointHistory, rechargePoints, usePoints }}>
       {children}
     </AuthContext.Provider>
   );

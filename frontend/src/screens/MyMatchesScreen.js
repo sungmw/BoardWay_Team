@@ -70,25 +70,41 @@ export default function MyMatchesScreen({ navigation }) {
     return myMatches.filter(match => match.date === selectedDate);
   }, [myMatches, selectedDate]);
 
-  const renderMatchItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.matchItem}
-      onPress={() => navigation.navigate('MatchDetail', { matchId: item.id })}
-    >
-      <View style={styles.matchTimeContainer}>
-        <Text style={styles.matchTime}>{item.startTime}</Text>
+  const renderMatchItem = ({ item }) => {
+    const isPastMatch = item.date <= new Date().toISOString().split('T')[0];
+
+    return (
+      <View style={styles.matchItemContainer}>
+        <TouchableOpacity 
+          style={styles.matchItem}
+          onPress={() => navigation.navigate('MatchDetail', { matchId: item.id })}
+        >
+          <View style={styles.matchTimeContainer}>
+            <Text style={styles.matchTime}>{item.startTime}</Text>
+          </View>
+          <View style={styles.matchInfo}>
+            <Text style={styles.matchGames} numberOfLines={1}>
+              {item.games.join(' ➔ ')}
+            </Text>
+            <Text style={styles.matchLocation}>
+              📍 {item.location.venue} {item.location.branch}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+        </TouchableOpacity>
+        
+        {isPastMatch && (
+          <TouchableOpacity 
+            style={styles.reviewBtn}
+            onPress={() => navigation.navigate('MatchReview', { match: item })}
+          >
+            <Ionicons name="star" size={16} color="#FFFFFF" />
+            <Text style={styles.reviewBtnText}>리뷰 남기기</Text>
+          </TouchableOpacity>
+        )}
       </View>
-      <View style={styles.matchInfo}>
-        <Text style={styles.matchGames} numberOfLines={1}>
-          {item.games.join(' ➔ ')}
-        </Text>
-        <Text style={styles.matchLocation}>
-          📍 {item.location.venue} {item.location.branch}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-    </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={commonStyles.container}>
@@ -153,12 +169,12 @@ export default function MyMatchesScreen({ navigation }) {
           <Text style={[styles.tabText, { color: colors.primary }]}>내 매치</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Chat')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('ChatList')}>
           <Ionicons name="chatbubbles-outline" size={24} color={colors.textLight} />
           <Text style={styles.tabText}>채팅</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('MyPage')}>
           <Ionicons name="person-outline" size={24} color={colors.textLight} />
           <Text style={styles.tabText}>마이페이지</Text>
         </TouchableOpacity>
@@ -210,14 +226,30 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 20,
   },
+  matchItemContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+    ...commonStyles.shadow,
+  },
   matchItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
     padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-    ...commonStyles.shadow,
+  },
+  reviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.secondary,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  reviewBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   matchTimeContainer: {
     paddingRight: 15,

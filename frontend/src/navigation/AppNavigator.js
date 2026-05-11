@@ -9,6 +9,11 @@ import MatchConfirmationScreen from '../screens/MatchConfirmationScreen';
 import GameSearchScreen from '../screens/GameSearchScreen';
 import GameDetailScreen from '../screens/GameDetailScreen';
 import MyMatchesScreen from '../screens/MyMatchesScreen';
+import MyPageScreen from '../screens/MyPageScreen';
+import PointHistoryScreen from '../screens/PointHistoryScreen';
+import ChatListScreen from '../screens/ChatListScreen';
+import ChatRoomScreen from '../screens/ChatRoomScreen';
+import MatchReviewScreen from '../screens/MatchReviewScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -26,6 +31,11 @@ export default function AppNavigator() {
       <Stack.Screen name="GameSearch" component={GameSearchScreen} options={{ title: '게임 도감' }} />
       <Stack.Screen name="GameDetail" component={GameDetailScreen} options={{ title: '게임 정보' }} />
       <Stack.Screen name="MyMatches" component={MyMatchesScreen} />
+      <Stack.Screen name="MyPage" component={MyPageScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="PointHistory" component={PointHistoryScreen} options={{ title: '포인트 내역' }} />
+      <Stack.Screen name="ChatList" component={ChatListScreen} />
+      <Stack.Screen name="ChatRoom" component={ChatRoomScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="MatchReview" component={MatchReviewScreen} options={{ headerShown: false }} />
       <Stack.Screen 
         name="MatchConfirmation" 
         component={MatchConfirmationScreen} 

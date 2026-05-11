@@ -84,12 +84,19 @@ export const MatchProvider = ({ children }) => {
     return matches.find(m => m.id === matchId) || BACKUP_DATA.find(m => m.id === matchId);
   };
 
-  const joinMatch = async (matchId) => {
+  const [hostMap, setHostMap] = useState({}); // { matchId: hostNickname }
+
+  const joinMatch = async (matchId, nickname, mannerScore, role = 'participant') => {
     if (!token) {
       return { success: false, message: '로그인이 필요합니다.' };
     }
 
-    console.log(`[MatchContext] 매치 참여 요청 시작: MatchID=${matchId}`);
+    // 이미 방장이 있는지 확인
+    if (role === 'host' && hostMap[matchId]) {
+      return { success: false, message: '이미 방장이 정해진 매치입니다.' };
+    }
+
+    console.log(`[MatchContext] 매치 참여 요청 시작: MatchID=${matchId}, Role=${role}`);
     try {
       const response = await fetch(`${API_URL}/matches/${matchId}/join`, {
         method: 'POST',
@@ -100,6 +107,9 @@ export const MatchProvider = ({ children }) => {
       });
 
       if (response.ok) {
+        if (role === 'host') {
+          setHostMap(prev => ({ ...prev, [matchId]: nickname }));
+        }
         await fetchMatches();
         return { success: true };
       } else if (response.status === 401) {
@@ -143,7 +153,7 @@ export const MatchProvider = ({ children }) => {
   };
 
   return (
-    <MatchContext.Provider value={{ matches, joinMatch, leaveMatch, loading, fetchMatches, fetchMatchById }}>
+    <MatchContext.Provider value={{ matches, joinMatch, leaveMatch, loading, fetchMatches, fetchMatchById, hostMap }}>
       {children}
     </MatchContext.Provider>
   );
