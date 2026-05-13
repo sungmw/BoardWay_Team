@@ -10,8 +10,8 @@
 | :--- | :--- |
 | **프론트엔드** | React Native + Expo (SDK 54) |
 | **백엔드** | FastAPI (Python 3.x) |
-| **데이터베이스** | 없음 (In-memory 변수 사용) |
-| **인증** | 없음 (단순 이메일 체크 로직) |
+| **데이터베이스** | SQLAlchemy + SQLite 기본값, Supabase PostgreSQL 전환 가능 |
+| **인증** | JWT Bearer Token + bcrypt 비밀번호 해싱 |
 | **인프라** | 로컬 개발 환경 |
 
 ---
@@ -20,16 +20,16 @@
 
 - **UI/UX:** 인트로(애니메이션), 로그인, 회원가입, 매칭 탐색(Discovery), 매칭 상세 화면
 - **상태 관리:** Context API (`AuthContext`, `MatchContext`)를 통한 전역 상태 관리
-- **백엔드 API:** `/matches`, `/signup`, `/login`, `/matches/{id}/join` 엔드포인트 기초 설계
+- **백엔드 API:** `/matches`, `/matches/{id}`, `/matches/{id}/join`, `/matches/{id}/leave`, `/my-matches`, `/games`, `/signup`, `/login`, `/me` 엔드포인트 기초 설계
 - **기능:** Google Maps WebView 연동, 유튜브 룰 영상 플레이어, 종료 시간 자동 계산 로직
 
 ---
 
 ## 🚨 핵심 문제점 및 개선 필요 사항
 
-1. **데이터 영속성 부재:** 서버 재시작 시 모든 회원 및 매치 데이터가 초기화됨 (실제 DB 연동 필수)
-2. **보안 취약성:** JWT 등 인증 토큰 부재, 비밀번호 평문 저장 (해싱 및 토큰 인증 필요)
-3. **네트워크 설정:** API URL이 로컬 IP로 하드코딩되어 있어 환경 변화에 취약
+1. **마이그레이션 체계 부재:** 현재는 앱 실행 시 `create_all`로 테이블을 만들기 때문에 Alembic 같은 스키마 변경 관리가 필요함
+2. **Supabase 연결 검증 필요:** `DATABASE_URL` 기반 PostgreSQL 전환 구조는 있으나 실제 Supabase 프로젝트 연결 테스트가 남아 있음
+3. **토큰/보안 운영 설정:** 개발용 `SECRET_KEY` 기본값 제거, 토큰 만료/갱신 정책 정리 필요
 4. **기능 미비:** 사용자의 매치 생성 기능, 실시간 인원 반영, 실제 결제 연동 등 미구현
 
 ---
@@ -37,8 +37,8 @@
 ## 🗺 향후 개발 파이프라인 (Roadmap)
 
 ### Phase 1: 기반 다지기 (최우선)
-- [ ] **DB 연동:** Supabase(PostgreSQL) 또는 Firebase Firestore 연동
-- [ ] **보안 강화:** `bcrypt` 비밀번호 해싱 및 `JWT` 기반 인증 시스템 구축
+- [x] **로컬 DB 연동:** SQLite 기반 개발 DB 구축
+- [ ] **운영 DB 연결:** Supabase(PostgreSQL) `DATABASE_URL` 연결 및 시딩 검증
 - [ ] **API 고도화:** 프론트엔드-백엔드 간 실제 데이터 통신 안정화
 
 ### Phase 2: 핵심 기능 완성
@@ -60,6 +60,6 @@
 
 ## 🏃 지금 당장 할 일 (Action Items)
 
-1. **DB 선택 및 설정:** Supabase 또는 Firebase 중 택 1 하여 프로젝트 생성
-2. **백엔드 리팩토링:** 인메모리 DB 로직을 실제 DB CRUD 로직으로 교체
-3. **Auth 시스템 개편:** JWT 토큰 발급 및 검증 미들웨어 추가
+1. **로컬 DB 확인:** `backend/.env.example` 기준으로 SQLite 개발 DB 생성 및 `python seed.py` 실행
+2. **Supabase 연결:** Supabase PostgreSQL 연결 문자열을 `DATABASE_URL`에 넣고 같은 API가 동작하는지 확인
+3. **마이그레이션 도입:** Alembic으로 테이블 생성/변경 이력을 관리

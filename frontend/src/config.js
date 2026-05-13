@@ -1,5 +1,7 @@
-// ✅ 여기 한 곳만 바꾸면 앱 전체에 적용됩니다!
-// 백엔드 서버를 실행 중인 Mac의 IP 주소를 입력하세요.
-// 터미널에서 'ifconfig | grep inet' 명령어로 현재 IP 확인 가능
+import { Platform } from 'react-native';
 
-export const API_URL = 'http://10.2.31.222:8000';
+const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+
+export const API_URL =
+  envApiUrl ||
+  (Platform.OS === 'web' ? 'http://localhost:8000' : 'http://10.0.2.2:8000');

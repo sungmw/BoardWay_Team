@@ -21,7 +21,7 @@
 | **Frontend** | React Native (Expo SDK 54) | iOS / Android / Web 대응 |
 | **Navigation** | React Navigation v6 | Native Stack 기반 화면 전환 |
 | **Backend** | Python FastAPI | REST API 기반 백엔드 |
-| **DB** | In-memory (Python List/Dict) | 프로토타입용 10개 매치 하드코딩 |
+| **DB** | SQLite / Supabase PostgreSQL | 로컬은 SQLite, 배포/공유 DB는 `DATABASE_URL`로 전환 |
 | **지도** | Google Maps Embed (WebView) | 장소 위치 정보 시각화 |
 | **영상** | react-native-youtube-iframe | 유튜브 룰 설명 영상 재생 |
 
@@ -32,8 +32,12 @@
 ```text
 BoardWay/
 ├── backend/
-│   ├── main.py                # FastAPI 서버 (전체 API 로직 & 데이터)
-│   └── requirements.txt       # 백엔드 의존성 (fastapi, uvicorn 등)
+│   ├── main.py                # FastAPI 서버 및 REST API
+│   ├── database.py            # SQLAlchemy DB 연결 설정
+│   ├── models.py              # User / Game / Match 테이블 모델
+│   ├── crud.py                # DB CRUD 로직
+│   ├── seed.py                # 로컬 개발용 초기 데이터 시딩
+│   └── requirements.txt       # 백엔드 의존성
 │
 └── frontend/
     ├── App.js                 # 앱 엔트리포인트 (Provider 설정)
@@ -102,9 +106,11 @@ BoardWay/
 ```bash
 cd backend
 pip install -r requirements.txt
+python seed.py
 python main.py
 ```
 > 서버는 기본적으로 `http://0.0.0.0:8000`에서 실행됩니다.
+> `DATABASE_URL`이 없으면 `backend/boardway.db` SQLite 파일을 자동으로 사용합니다.
 
 ### 2. Frontend 실행
 ```bash
@@ -113,8 +119,28 @@ npm install
 npx expo start
 ```
 
-### ⚠️ 주의사항 (API URL)
-프론트엔드(`AuthContext.js`, `MatchContext.js`)의 `API_URL` 상수를 현재 실행 중인 로컬 IP 주소로 수정해야 모바일 기기(Expo Go)에서 서버와 통신이 가능합니다.
+### 3. 환경변수
+
+각 폴더의 `.env.example`을 참고해 `.env`를 만들면 됩니다.
+
+```bash
+# backend/.env
+DATABASE_URL=sqlite:///./boardway.db
+SECRET_KEY=change-this-in-production
+
+# Supabase를 쓸 때는 PostgreSQL 연결 문자열로 교체
+# DATABASE_URL=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres?sslmode=require
+```
+
+```bash
+# frontend/.env
+EXPO_PUBLIC_API_URL=http://내-PC-LAN-IP:8000
+
+# web-frontend/.env
+VITE_API_URL=http://localhost:8000
+```
+
+모바일 실기기 Expo Go에서는 `localhost`가 휴대폰 자신을 의미하므로 PC의 LAN IP를 `EXPO_PUBLIC_API_URL`에 넣어야 합니다.
 
 ---
 
@@ -124,7 +150,8 @@ npx expo start
 - [x] 상세 페이지 (지도, 유튜브, 참여자 리스트)
 - [x] Context API 기반 전역 상태 관리
 - [x] FastAPI 연동 (로그인/가입/참여)
-- [ ] 실제 데이터베이스 연동 (PostgreSQL 등)
-- [ ] JWT 및 보안 인증 강화
+- [x] SQLAlchemy 기반 SQLite 개발 DB 연동
+- [x] JWT 및 비밀번호 해싱 기초 적용
+- [ ] Supabase PostgreSQL 연결 검증 및 마이그레이션 체계 도입
 - [ ] 실제 결제 게이트웨이 연동
 - [ ] 사용자 프로필 및 매너 점수 평가 시스템

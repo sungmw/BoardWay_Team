@@ -10,11 +10,12 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DB_PATH = os.path.join(BASE_DIR, "boardway.db")
 
-# 환경 변수에서 POSTGRES_URL 가져오기
-# 없으면 기본값으로 SQLite 사용 (개발용)
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    "POSTGRES_URL", 
-    f"sqlite:///{DEFAULT_DB_PATH}"
+# 환경 변수에서 DB URL 가져오기
+# 없으면 기본값으로 SQLite 사용 (로컬 개발용)
+SQLALCHEMY_DATABASE_URL = (
+    os.getenv("DATABASE_URL")
+    or os.getenv("POSTGRES_URL")
+    or f"sqlite:///{DEFAULT_DB_PATH}"
 )
 
 # PostgreSQL일 경우 추가 인자 불필요, SQLite일 경우 check_same_thread=False 필요

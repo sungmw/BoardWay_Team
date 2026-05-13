@@ -89,6 +89,13 @@ def format_match(m):
         print(f"Error formatting match {m.id}: {e}")
         return None
 
+def public_url(request: Request, path_or_url: str):
+    if not path_or_url:
+        return path_or_url
+    if path_or_url.startswith(("http://", "https://")):
+        return path_or_url
+    return str(request.base_url).rstrip("/") + "/" + path_or_url.lstrip("/")
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to BoardWay API Server! (DB Connected)"}
@@ -149,7 +156,7 @@ def get_my_matches(db: Session = Depends(get_db), current_user: models.User = De
     return {"matches": [format_match(m) for m in matches]}
 
 @app.get("/games")
-def get_games(db: Session = Depends(get_db)):
+def get_games(request: Request, db: Session = Depends(get_db)):
     games = crud.get_games(db)
     result = []
     for g in games:
@@ -160,7 +167,7 @@ def get_games(db: Session = Depends(get_db)):
             "difficulty": g.difficulty,
             "description": g.description,
             "ruleUrl": g.ruleUrl,
-            "image": g.image
+            "image": public_url(request, g.image)
         })
     return {"games": result}
 
