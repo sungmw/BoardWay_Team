@@ -18,8 +18,8 @@ LocaleConfig.locales['kr'] = {
 LocaleConfig.defaultLocale = 'kr';
 
 export default function MyMatchesScreen({ navigation }) {
-  const { matches } = useContext(MatchContext);
-  const { user } = useContext(AuthContext);
+  const { matches, hostMap } = useContext(MatchContext);
+  const { user, reviewedMatches, settledMatches, settleMatchReward } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   // 내 매치만 필터링
@@ -70,8 +70,28 @@ export default function MyMatchesScreen({ navigation }) {
     return myMatches.filter(match => match.date === selectedDate);
   }, [myMatches, selectedDate]);
 
+  const handleSettle = async (match) => {
+    const isHost = hostMap[match.id] === user.nickname;
+    const result = await settleMatchReward(match.id, isHost, match.games.join(', '));
+    if (result.success) {
+      Alert.alert('정산 완료', result.message);
+    } else {
+      Alert.alert('알림', result.message);
+    }
+  };
+
   const renderMatchItem = ({ item }) => {
-    const isPastMatch = item.date <= new Date().toISOString().split('T')[0];
+    const isReviewed = reviewedMatches.includes(item.id);
+    
+    // 시간 계산 (매치 시작 시간 + 2시간 종료 + 30분 제한)
+    const matchStart = new Date(`${item.date}T${item.startTime}:00`);
+    const matchEnd = new Date(matchStart.getTime() + 2 * 60 * 60 * 1000); // 2시간 후 종료
+    const reviewDeadline = new Date(matchEnd.getTime() + 30 * 60 * 1000); // 종료 후 30분까지
+    const now = new Date();
+
+    const isPastMatch = now > matchEnd;
+    const isWithinWindow = now >= matchEnd && now <= reviewDeadline;
+    const isExpired = now > reviewDeadline;
 
     return (
       <View style={styles.matchItemContainer}>
@@ -94,13 +114,59 @@ export default function MyMatchesScreen({ navigation }) {
         </TouchableOpacity>
         
         {isPastMatch && (
-          <TouchableOpacity 
-            style={styles.reviewBtn}
-            onPress={() => navigation.navigate('MatchReview', { match: item })}
-          >
-            <Ionicons name="star" size={16} color="#FFFFFF" />
-            <Text style={styles.reviewBtnText}>리뷰 남기기</Text>
-          </TouchableOpacity>
+          isReviewed ? (
+            isExpired ? (
+              settledMatches.includes(item.id) ? (
+                <View style={[styles.reviewBtn, styles.settledBtn]}>
+                  <Ionicons name="receipt-outline" size={16} color={colors.textLight} />
+                  <Text style={styles.settledBtnText}>정산 완료</Text>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.reviewBtn, styles.settleBtn]}
+                  onPress={() => handleSettle(item)}
+                >
+                  <Ionicons name="calculator-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.settleBtnText}>정산 결과 확인</Text>
+                </TouchableOpacity>
+              )
+            ) : (
+              <View style={[styles.reviewBtn, styles.reviewedBtn]}>
+                <Ionicons name="time-outline" size={16} color={colors.textLight} />
+                <Text style={styles.reviewedBtnText}>리뷰 완료 (정산 대기중)</Text>
+              </View>
+            )
+          ) : isExpired ? (
+            settledMatches.includes(item.id) ? (
+              <View style={[styles.reviewBtn, styles.settledBtn]}>
+                <Text style={styles.settledBtnText}>정산 완료 (미참여)</Text>
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={[styles.reviewBtn, styles.settleBtn]}
+                onPress={() => handleSettle(item)}
+              >
+                <Text style={styles.settleBtnText}>정산 결과 확인 (기한만료)</Text>
+              </TouchableOpacity>
+            )
+          ) : isWithinWindow ? (
+            <View style={[styles.reviewBtn, styles.expiredBtn]}>
+              <Ionicons name="time-outline" size={16} color={colors.error} />
+              <Text style={styles.expiredBtnText}>리뷰 기간 만료 (30분 경과)</Text>
+            </View>
+          ) : isWithinWindow ? (
+            <TouchableOpacity 
+              style={styles.reviewBtn}
+              onPress={() => navigation.navigate('MatchReview', { match: item })}
+            >
+              <Ionicons name="star" size={16} color="#FFFFFF" />
+              <Text style={styles.reviewBtnText}>리뷰 남기기 (제한시간 30분)</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.reviewBtn, styles.waitingBtn]}>
+              <Text style={styles.waitingBtnText}>매치 진행 중...</Text>
+            </View>
+          )
         )}
       </View>
     );
@@ -249,6 +315,45 @@ const styles = StyleSheet.create({
   reviewBtnText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+    fontSize: 14,
+  },
+  reviewedBtn: {
+    backgroundColor: '#F5F5F5',
+  },
+  reviewedBtnText: {
+    color: colors.textLight,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  expiredBtn: {
+    backgroundColor: '#FFEBEB',
+  },
+  expiredBtnText: {
+    color: colors.error,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  waitingBtn: {
+    backgroundColor: '#F8F9FA',
+  },
+  waitingBtnText: {
+    color: colors.textLight,
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  settleBtn: {
+    backgroundColor: colors.primary,
+  },
+  settleBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  settledBtn: {
+    backgroundColor: '#EEEEEE',
+  },
+  settledBtnText: {
+    color: colors.textLight,
     fontSize: 14,
   },
   matchTimeContainer: {

@@ -7,7 +7,7 @@ import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 
 export default function ChatListScreen({ navigation }) {
-  const { matches } = useContext(MatchContext);
+  const { matches, hostMap } = useContext(MatchContext);
   const { user } = useContext(AuthContext);
 
   // 내가 참여 중인 매치만 필터링
@@ -28,6 +28,11 @@ export default function ChatListScreen({ navigation }) {
           <Text style={styles.matchTitle} numberOfLines={1}>
             [{item.location.branch}] {item.games.join(', ')}
           </Text>
+          {hostMap[item.id] && (
+            <View style={styles.chatHostBadge}>
+              <Text style={styles.chatHostText}>👑 {hostMap[item.id]}</Text>
+            </View>
+          )}
           <Text style={styles.timeText}>{item.startTime}</Text>
         </View>
         <Text style={styles.lastMessage} numberOfLines={1}>
@@ -161,6 +166,18 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: 10,
+    fontWeight: 'bold',
+  },
+  chatHostBadge: {
+    backgroundColor: '#FFF9E6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  chatHostText: {
+    color: '#D4AF37',
+    fontSize: 11,
     fontWeight: 'bold',
   },
   emptyContainer: {

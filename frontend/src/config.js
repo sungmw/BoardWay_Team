@@ -2,4 +2,4 @@
 // 백엔드 서버를 실행 중인 Mac의 IP 주소를 입력하세요.
 // 터미널에서 'ifconfig | grep inet' 명령어로 현재 IP 확인 가능
 
-export const API_URL = 'http://192.168.0.55:8000';
+export const API_URL = 'http://10.2.31.222:8000';

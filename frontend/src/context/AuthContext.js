@@ -119,14 +119,20 @@ export const AuthProvider = ({ children }) => {
 
   const [points, setPoints] = useState(0);
   const [pointHistory, setPointHistory] = useState([]);
+  const [reviewedMatches, setReviewedMatches] = useState([]);
+  const [settledMatches, setSettledMatches] = useState([]);
 
-  // 유저가 로그인하거나 변경될 때 해당 유저의 포인트 데이터 로드
+  // 유저가 로그인하거나 변경될 때 해당 유저의 데이터 로드
   useEffect(() => {
     if (user) {
       loadUserPointData(user.email);
+      loadUserReviewData(user.email);
+      loadUserSettlementData(user.email);
     } else {
       setPoints(0);
       setPointHistory([]);
+      setReviewedMatches([]);
+      setSettledMatches([]);
     }
   }, [user]);
 
@@ -142,7 +148,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const rechargePoints = async (amount) => {
+  const loadUserReviewData = async (email) => {
+    try {
+      const storedReviews = await AsyncStorage.getItem(`reviewed_${email}`);
+      setReviewedMatches(storedReviews ? JSON.parse(storedReviews) : []);
+    } catch (e) {
+      console.error('Failed to load review data', e);
+    }
+  };
+
+  const loadUserSettlementData = async (email) => {
+    try {
+      const storedSettlements = await AsyncStorage.getItem(`settled_${email}`);
+      setSettledMatches(storedSettlements ? JSON.parse(storedSettlements) : []);
+    } catch (e) {
+      console.error('Failed to load settlement data', e);
+    }
+  };
+
+  const rechargePoints = async (amount, description = '포인트 충전') => {
     if (!user) return false;
 
     const newPoints = points + amount;
@@ -151,7 +175,7 @@ export const AuthProvider = ({ children }) => {
       type: '충전',
       amount: amount,
       date: new Date().toISOString(),
-      description: '포인트 충전',
+      description: description,
     };
     const newHistory = [historyItem, ...pointHistory];
 
@@ -195,16 +219,59 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const completeReview = async (matchId) => {
+    if (!user) return;
+    const newReviewed = [...reviewedMatches, matchId];
+    setReviewedMatches(newReviewed);
+    try {
+      await AsyncStorage.setItem(`reviewed_${user.email}`, JSON.stringify(newReviewed));
+    } catch (e) {
+      console.error('Failed to save review data', e);
+    }
+  };
+
+  const settleMatchReward = async (matchId, isHost, matchTitle) => {
+    if (!user || settledMatches.includes(matchId)) return { success: false, message: '이미 정산된 매치입니다.' };
+
+    let message = '매너 점수가 정산되었습니다.';
+    let rewardGiven = false;
+
+    if (isHost) {
+      // 방장 리워드 지급 (3000P)
+      const reward = 3000;
+      await rechargePoints(reward, `[${matchTitle}] 방장 리워드 페이백`);
+      message = `참여자들의 높은 평가로 방장 리워드 ${reward.toLocaleString()}P가 지급되었습니다! ✨`;
+      rewardGiven = true;
+    }
+
+    const newSettled = [...settledMatches, matchId];
+    setSettledMatches(newSettled);
+    try {
+      await AsyncStorage.setItem(`settled_${user.email}`, JSON.stringify(newSettled));
+      return { success: true, message, rewardGiven };
+    } catch (e) {
+      console.error('Failed to save settlement data', e);
+      return { success: false, message: '정산 처리 중 오류가 발생했습니다.' };
+    }
+  };
+
   const logout = async () => {
     setUser(null);
     setToken(null);
     setPoints(0);
     setPointHistory([]);
+    setReviewedMatches([]);
+    setSettledMatches([]);
     await AsyncStorage.removeItem('userToken');
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, points, pointHistory, rechargePoints, usePoints }}>
+    <AuthContext.Provider value={{ 
+      user, token, loading, login, signup, logout, 
+      points, pointHistory, rechargePoints, usePoints, 
+      reviewedMatches, completeReview,
+      settledMatches, settleMatchReward
+    }}>
       {children}
     </AuthContext.Provider>
   );

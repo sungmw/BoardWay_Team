@@ -8,7 +8,7 @@ import { MatchContext } from '../context/MatchContext';
 
 export default function MatchReviewScreen({ route, navigation }) {
   const { match } = route.params;
-  const { user, rechargePoints } = useContext(AuthContext);
+  const { user, rechargePoints, completeReview } = useContext(AuthContext);
   const { hostMap } = useContext(MatchContext);
   
   const participants = match.participants.filter(p => p.nickname !== user.nickname);
@@ -22,21 +22,32 @@ export default function MatchReviewScreen({ route, navigation }) {
     setRatings(prev => ({ ...prev, [nickname]: score }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // 시간 체크 (종료 후 30분 이내인지)
+    const matchStart = new Date(`${match.date}T${match.startTime}:00`);
+    const matchEnd = new Date(matchStart.getTime() + 2 * 60 * 60 * 1000); 
+    const reviewDeadline = new Date(matchEnd.getTime() + 30 * 60 * 1000);
+    const now = new Date();
+
+    if (now > reviewDeadline) {
+      Alert.alert('리뷰 기간 만료', '매치 종료 후 30분이 경과하여 리뷰를 남길 수 없습니다. (매너 온도 및 리워드에 반영되지 않습니다)');
+      navigation.goBack();
+      return;
+    }
+
     if (Object.keys(ratings).length < participants.length) {
       Alert.alert('알림', '모든 참여자에 대한 리뷰를 남겨주세요.');
       return;
     }
 
     // 방장 리워드 로직 (데모용 가상 로직)
-    // 실제로는 모든 유저의 리뷰가 모여야 하지만, 여기서는 즉시 처리 시뮬레이션
     if (isUserHost) {
-      // 본인이 방장인 경우, 나중에 참여자들의 평가를 받고 지급된다는 안내
-      Alert.alert('리뷰 완료', '리뷰를 남겨주셔서 감사합니다! 참여자들의 평가 점수에 따라 방장 리워드 포인트가 지급될 예정입니다.');
+      Alert.alert('리뷰 완료', '리뷰를 남겨주셔서 감사합니다!\n모든 참여자의 리뷰가 완료되거나 제한시간이 지나면 방장 리워드가 정산됩니다.');
     } else {
       Alert.alert('리뷰 완료', '리뷰를 남겨주셔서 감사합니다! 소중한 의견이 매너 온도에 반영됩니다.');
     }
     
+    await completeReview(match.id);
     navigation.goBack();
   };
 

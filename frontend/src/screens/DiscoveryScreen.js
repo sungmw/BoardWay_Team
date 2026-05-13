@@ -26,7 +26,7 @@ export default function DiscoveryScreen({ navigation }) {
   const [activeTime, setActiveTime] = useState('전체');
   const [activeModal, setActiveModal] = useState(null);
   
-  const { matches } = useContext(MatchContext);
+  const { matches, hostMap } = useContext(MatchContext);
   const { user, logout } = useContext(AuthContext);
 
   // 날짜 리스트 생성 (오늘부터 14일간)
@@ -105,15 +105,26 @@ export default function DiscoveryScreen({ navigation }) {
     const isFull = item.participants.length >= item.maxPlayers;
     const isMyMatch = user && item.participants.some(p => p.nickname === user.nickname);
     
+    // 시작 여부 체크
+    const matchStart = new Date(`${item.date}T${item.startTime}:00`);
+    const now = new Date();
+    const isStarted = now > matchStart;
+    
     return (
       <TouchableOpacity 
-        style={[commonStyles.card, isFull && styles.cardFull]}
-        onPress={() => !isFull && navigation.navigate('MatchDetail', { matchId: item.id })}
-        activeOpacity={isFull ? 1 : 0.8}
+        style={[commonStyles.card, (isFull || isStarted) && styles.cardFull]}
+        onPress={() => !(isFull || isStarted) && navigation.navigate('MatchDetail', { matchId: item.id })}
+        activeOpacity={(isFull || isStarted) ? 1 : 0.8}
       >
         {isFull && (
           <View style={styles.overlayFull}>
             <Text style={styles.overlayFullText}>매치마감</Text>
+          </View>
+        )}
+
+        {!isFull && isStarted && (
+          <View style={styles.overlayFull}>
+            <Text style={[styles.overlayFullText, { color: colors.textLight }]}>진행중</Text>
           </View>
         )}
         
@@ -121,6 +132,11 @@ export default function DiscoveryScreen({ navigation }) {
           <Text style={[styles.gameName, isFull && styles.textFull]} numberOfLines={2}>
             {item.games.join(' ➔ ')}
           </Text>
+          {hostMap[item.id] && (
+            <View style={styles.hostBadgeCard}>
+              <Text style={styles.hostBadgeCardText}>👑 {hostMap[item.id]}</Text>
+            </View>
+          )}
           {isMyMatch && (
             <View style={styles.myMatchBadge}>
               <Text style={styles.myMatchBadgeText}>✓ 내 매치</Text>
@@ -520,6 +536,21 @@ const styles = StyleSheet.create({
   },
   textFull: {
     color: '#888888',
+  },
+  hostBadgeCard: {
+    backgroundColor: '#FFF9E6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#D4AF37',
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  hostBadgeCardText: {
+    color: '#D4AF37',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   // Bottom Sheet Modal
   modalOverlay: {
