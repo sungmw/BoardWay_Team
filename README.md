@@ -18,7 +18,7 @@
 
 | 구분 | 기술 | 비고 |
 | :--- | :--- | :--- |
-| **Frontend** | React Native (Expo SDK 54) | iOS / Android / Web 대응 |
+| **Frontend** | React Native (Expo SDK 54) | iOS / Android / Web 단일 코드 (`npx expo start --web`) |
 | **Navigation** | React Navigation v6 | Native Stack 기반 화면 전환 |
 | **Backend** | Python FastAPI | REST API 기반 백엔드 |
 | **DB** | SQLite / Supabase PostgreSQL | 로컬은 SQLite, 배포/공유 DB는 `DATABASE_URL`로 전환 |
@@ -116,28 +116,27 @@ python main.py
 ```bash
 cd frontend
 npm install
-npx expo start
+npx expo start          # 모바일 (QR로 Expo Go 접속)
+npx expo start --web    # 웹 (브라우저에서 즉시 확인)
 ```
+
+> 한 코드베이스로 iOS / Android / Web 모두 동작합니다.
 
 ### 3. 환경변수
 
 각 폴더의 `.env.example`을 참고해 `.env`를 만들면 됩니다.
 
 ```bash
-# backend/.env
-DATABASE_URL=sqlite:///./boardway.db
+# backend/.env  (SECRET_KEY는 필수 — 미설정 시 부팅 실패)
 SECRET_KEY=change-this-in-production
-
-# Supabase를 쓸 때는 PostgreSQL 연결 문자열로 교체
+# DATABASE_URL=sqlite:///./boardway.db        # 비우면 자동으로 SQLite 사용
 # DATABASE_URL=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres?sslmode=require
+# CORS_ORIGINS=http://localhost:8081,http://localhost:5173   # 콤마 구분, 미설정 시 개발 기본값
 ```
 
 ```bash
 # frontend/.env
 EXPO_PUBLIC_API_URL=http://내-PC-LAN-IP:8000
-
-# web-frontend/.env
-VITE_API_URL=http://localhost:8000
 ```
 
 모바일 실기기 Expo Go에서는 `localhost`가 휴대폰 자신을 의미하므로 PC의 LAN IP를 `EXPO_PUBLIC_API_URL`에 넣어야 합니다.

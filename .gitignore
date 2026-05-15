@@ -26,6 +26,7 @@ Thumbs.db
 # IDEs
 .vscode/
 .idea/
+.claude/
 
 # Project specific
 extracted_texts.txt

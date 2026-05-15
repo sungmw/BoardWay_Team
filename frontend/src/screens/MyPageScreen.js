@@ -44,11 +44,12 @@ export default function MyPageScreen({ navigation }) {
     );
   };
 
-  // 주사위 아이콘 결정 함수
+  // 주사위 아이콘 결정 함수 — Ionicons 이름은 숫자가 아니라 영어 단어
   const getDiceIcon = (score) => {
+    const numToWord = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
     const roundedScore = Math.round(score);
-    if (roundedScore <= 1) return "dice-outline"; // 1점 이하는 그냥 주사위
-    return `dice-${Math.min(roundedScore, 6)}-outline`;
+    if (roundedScore <= 1) return "dice-outline";
+    return `dice-${numToWord[Math.min(roundedScore, 6)]}-outline`;
   };
 
   return (

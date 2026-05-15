@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Alert, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Alert, SafeAreaView, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
@@ -7,6 +7,44 @@ import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 import YoutubePlayer from "react-native-youtube-iframe";
 import { WebView } from 'react-native-webview';
+
+// 지도/유튜브 임베드 — 웹에선 iframe, 모바일은 기존 라이브러리.
+// Platform.OS 분기로 보호되어 모바일에선 iframe 코드가 호출되지 않음.
+const MapEmbed = ({ query, height = 200 }) => {
+  const embedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+  if (Platform.OS === 'web') {
+    return (
+      <iframe
+        src={embedUrl}
+        style={{ width: '100%', height, border: 0 }}
+        title="지도"
+      />
+    );
+  }
+  return (
+    <WebView
+      source={{ uri: embedUrl }}
+      style={{ flex: 1 }}
+      scrollEnabled={false}
+    />
+  );
+};
+
+const YoutubeEmbed = ({ videoId, height = 200 }) => {
+  if (!videoId) return null;
+  if (Platform.OS === 'web') {
+    return (
+      <iframe
+        src={`https://www.youtube.com/embed/${videoId}`}
+        style={{ width: '100%', height, border: 0 }}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        title="rule video"
+      />
+    );
+  }
+  return <YoutubePlayer height={height} play={false} videoId={videoId} />;
+};
 
 export default function MatchDetailScreen({ route, navigation }) {
   const { matchId } = route.params;
@@ -73,7 +111,7 @@ export default function MatchDetailScreen({ route, navigation }) {
     return (match && match[2].length === 11) ? match[2] : '';
   };
 
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.location.venue + ' ' + match.location.branch)}`;
+  const mapQuery = `${match.location.venue} ${match.location.branch}`;
 
   const matchStart = new Date(`${match.date}T${match.startTime}:00`);
   const now = new Date();
@@ -112,11 +150,7 @@ export default function MatchDetailScreen({ route, navigation }) {
             <Text style={styles.locationAddress}>{match.location.address}</Text>
           </View>
           <View style={styles.mapContainer}>
-            <WebView 
-              source={{ uri: mapUrl }} 
-              style={styles.mapWebView} 
-              scrollEnabled={false}
-            />
+            <MapEmbed query={mapQuery} height={200} />
           </View>
         </View>
 
@@ -156,13 +190,14 @@ export default function MatchDetailScreen({ route, navigation }) {
           </View>
 
           <View style={styles.videoContainer}>
-            <YoutubePlayer
-              height={200}
-              play={false}
+            <YoutubeEmbed
               videoId={extractVideoId(match.ruleVideoUrls[activeVideoIndex])}
+              height={200}
             />
           </View>
-          <Text style={styles.currentVideoLabel}>현재 영상: {match.games[activeVideoIndex]}</Text>
+          {extractVideoId(match.ruleVideoUrls[activeVideoIndex])
+            ? <Text style={styles.currentVideoLabel}>현재 영상: {match.games[activeVideoIndex]}</Text>
+            : <Text style={styles.currentVideoLabel}>이 매치에는 룰 영상이 등록되어 있지 않습니다.</Text>}
         </View>
       </ScrollView>
 
