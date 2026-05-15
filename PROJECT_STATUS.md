@@ -2,64 +2,100 @@
 
 이 문서는 BoardWay 프로젝트의 현재 구현 상태, 기술적 당면 과제, 그리고 향후 개발 방향성을 정리한 문서입니다.
 
+마지막 갱신: 2026-05-16
+
 ---
 
 ## 🏗 현재 기술 스택
 
 | 레이어 | 기술 |
 | :--- | :--- |
-| **프론트엔드** | React Native + Expo (SDK 54) |
+| **클라이언트** | Expo SDK 54 (React Native 0.81 / React 19) — iOS·Android·Web 단일 코드 |
 | **백엔드** | FastAPI (Python 3.x) |
 | **데이터베이스** | SQLAlchemy + SQLite 기본값, Supabase PostgreSQL 전환 가능 |
-| **인증** | JWT Bearer Token + bcrypt 비밀번호 해싱 |
+| **인증** | JWT Bearer Token (HS256, 7일) + bcrypt + SHA-256 pre-hash |
 | **인프라** | 로컬 개발 환경 |
 
 ---
 
 ## ✅ 현재 구현 완료 사항
 
-- **UI/UX:** 인트로(애니메이션), 로그인, 회원가입, 매칭 탐색(Discovery), 매칭 상세 화면
-- **상태 관리:** Context API (`AuthContext`, `MatchContext`)를 통한 전역 상태 관리
-- **백엔드 API:** `/matches`, `/matches/{id}`, `/matches/{id}/join`, `/matches/{id}/leave`, `/my-matches`, `/games`, `/signup`, `/login`, `/me` 엔드포인트 기초 설계
-- **기능:** Google Maps WebView 연동, 유튜브 룰 영상 플레이어, 종료 시간 자동 계산 로직
+- **UI/UX**: 인트로(애니메이션), 로그인, 회원가입, 매칭 탐색(Discovery), 매칭 상세, 마이페이지, 포인트/리뷰/채팅/내매치 화면 (총 14개)
+- **상태 관리**: Context API (`AuthContext`, `MatchContext`)
+- **백엔드 API**: `/matches` GET·POST·DELETE, `/matches/{id}/join`, `/matches/{id}/leave`, `/my-matches`, `/games`, `/signup`, `/login`, `/me`
+- **연동**: Google Maps 임베드 (웹 iframe / 모바일 WebView 자동 분기), 유튜브 룰 영상, 종료 시간 자동 계산
 
 ---
 
-## 🚨 핵심 문제점 및 개선 필요 사항
+## 🔧 2026-05-16 정리 작업 (이번 세션)
 
-1. **마이그레이션 체계 부재:** 현재는 앱 실행 시 `create_all`로 테이블을 만들기 때문에 Alembic 같은 스키마 변경 관리가 필요함
-2. **Supabase 연결 검증 필요:** `DATABASE_URL` 기반 PostgreSQL 전환 구조는 있으나 실제 Supabase 프로젝트 연결 테스트가 남아 있음
-3. **토큰/보안 운영 설정:** 개발용 `SECRET_KEY` 기본값 제거, 토큰 만료/갱신 정책 정리 필요
-4. **기능 미비:** 사용자의 매치 생성 기능, 실시간 인원 반영, 실제 결제 연동 등 미구현
+### 구조
+- `web-frontend/`(Vite) 폴더 폐기. **Expo 단일 코드베이스**로 통합. `npx expo start --web` 으로 브라우저에서 동작.
+- 모바일 화면이 웹에서도 그대로 — 코드 한 번 짜면 양쪽 다.
+
+### 백엔드 안전 정리
+- `auth_utils.py`: `SECRET_KEY` 환경변수 미설정 시 부팅 실패 (기본값 제거)
+- `main.py`: CORS 와일드카드 → `CORS_ORIGINS` 환경변수 화이트리스트
+- `schemas.py`: `EmailStr` 적용 (이메일 형식 검증 강화)
+- `seed.py`: `--reset` 플래그 + 확인 프롬프트 없이는 DB wipe 안 함
+- `requirements.txt`: `email-validator` 추가
+
+### 프론트 정리·웹 호환
+- `MatchContext`: `BACKUP_DATA` 폴백 제거 (서버 에러를 가짜 데이터로 가리던 문제), 디버그 `console.log` 정리
+- `MatchDetailScreen`: `MapEmbed` / `YoutubeEmbed` wrapper 추가. `Platform.OS === 'web'` 분기로 iframe / 모바일 라이브러리 자동 선택
+- 지도 URL을 `maps.google.com/maps?...&output=embed` 로 (X-Frame-Options 차단 회피)
+- `MyPageScreen`: dice 아이콘 이름 `dice-{숫자}-outline` → `dice-{영어단어}-outline` (Ionicons 명명 규칙)
 
 ---
 
-## 🗺 향후 개발 파이프라인 (Roadmap)
+## 🚨 핵심 문제점 및 개선 필요 사항 (남은 부채)
 
-### Phase 1: 기반 다지기 (최우선)
-- [x] **로컬 DB 연동:** SQLite 기반 개발 DB 구축
-- [ ] **운영 DB 연결:** Supabase(PostgreSQL) `DATABASE_URL` 연결 및 시딩 검증
-- [ ] **API 고도화:** 프론트엔드-백엔드 간 실제 데이터 통신 안정화
+1. **마이그레이션 부재**: 모델 변경 시 SQLite 수동 삭제 또는 `seed.py --reset` 필요. **Alembic 도입 권장**.
+2. **클라이언트 전용 상태**: 포인트·리뷰·호스트·정산 데이터가 AsyncStorage 에만 저장. 로그아웃·기기변경 시 소실. 백엔드 컬럼·엔드포인트 부재.
+3. **채팅 미구현**: `ChatListScreen`/`ChatRoomScreen` UI만 존재. WebSocket·메시지 저장·엔드포인트 모두 없음.
+4. **모바일 fetch 패턴**: raw `fetch()` + 수동 토큰 부착이 화면마다 반복. 401 처리도 단순 logout 만. 래퍼화 + 토큰 갱신 필요.
+5. **시드 매치 날짜 하드코딩**: 2026-05-11~17 고정. 다른 시점에 데모하면 빈 화면.
+
+---
+
+## 🗺 향후 개발 파이프라인
+
+### Phase 1: 기반 다지기 (현재 진행중)
+- [x] 로컬 DB 연동 (SQLite)
+- [x] Expo Web 통합 (모바일·웹 코드 일원화)
+- [x] 보안·검증 기본 정리 (CORS, SECRET_KEY, EmailStr, seed 가드)
+- [ ] **다음 작업: Alembic 도입** → DB 모델 변경 안전 추적
+- [ ] Supabase PostgreSQL 연결 검증
 
 ### Phase 2: 핵심 기능 완성
-- [ ] **매치 생성:** 사용자가 직접 장소, 시간, 게임을 설정하여 매치를 만드는 기능 추가
-- [ ] **실시간 동기화:** WebSocket 또는 실시간 DB를 활용한 참여 인원 실시간 업데이트
-- [ ] **환경변수 관리:** `.env` 도입으로 백엔드 주소 및 API 키 관리
+- [ ] **포인트 시스템 백엔드 이전** — 풀스택 1사이클 학습 과제 (model→crud→endpoint→client)
+- [ ] **리뷰 시스템 백엔드 이전** — 같은 패턴
+- [ ] **매치 생성 기능** — 사용자가 직접 매치 만들기
+- [ ] **실시간 동기화** — WebSocket 또는 폴링
 
-### Phase 3: 서비스 품질 향상
-- [ ] **배포:** Backend(Railway/Render), Frontend(Expo Application) 배포 준비
-- [ ] **에러 핸들링:** 글로벌 에러 경계(Error Boundary) 및 로딩 스켈레톤 UI 적용
-- [ ] **유효성 검사:** 입력 폼 검증 로직 강화 (이메일 형식, 비밀번호 규칙 등)
+### Phase 3: 서비스 품질
+- [ ] **모바일 fetch 래퍼** + 401 토큰 갱신 로직
+- [ ] 글로벌 에러 경계 + 로딩 스켈레톤 UI
+- [ ] 채팅 실 구현 (또는 UI 비활성화 결정)
 
-### Phase 4: 완성도 및 사용자 경험(UX)
-- [ ] **푸시 알림:** 매칭 확정 및 참여자 발생 시 알림 (Expo Notifications)
-- [ ] **위치 서비스:** 카카오맵/구글맵 API 고도화 (현재 위치 기반 검색)
-- [ ] **커뮤니케이션:** 매칭된 인원 전용 채팅방 기능
+### Phase 4: 배포
+- [ ] Backend (Railway/Render), Frontend (Expo EAS)
+- [ ] 푸시 알림 (Expo Notifications)
+- [ ] 위치 서비스 고도화
 
 ---
 
-## 🏃 지금 당장 할 일 (Action Items)
+## 🏃 다음 세션 시작 시 (맥북에서 이어서)
 
-1. **로컬 DB 확인:** `backend/.env.example` 기준으로 SQLite 개발 DB 생성 및 `python seed.py` 실행
-2. **Supabase 연결:** Supabase PostgreSQL 연결 문자열을 `DATABASE_URL`에 넣고 같은 API가 동작하는지 확인
-3. **마이그레이션 도입:** Alembic으로 테이블 생성/변경 이력을 관리
+1. `git pull origin main`
+2. **백엔드 셋업**:
+   - `cd backend && pip install -r requirements.txt`
+   - `backend/.env` 새로 생성 (`SECRET_KEY=아무문자열아무거나` 한 줄이면 충분)
+   - `python seed.py` (시드 채우기 — 새 DB)
+   - `python main.py`
+3. **프론트 셋업**:
+   - `cd frontend && npm install`
+   - `frontend/.env` 새로 생성 (`EXPO_PUBLIC_API_URL=http://맥북LAN_IP:8000`)
+   - `npx expo start --web`
+4. 브라우저에서 가입·로그인 (DB 새 거니까 새 가입 필요)
+5. **다음 작업**: Phase 1의 "Alembic 도입" 또는 Phase 2의 "포인트 시스템 백엔드 이전". 사용자 의향에 따라.
