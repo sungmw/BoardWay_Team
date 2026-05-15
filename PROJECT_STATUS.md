@@ -2,8 +2,6 @@
 
 이 문서는 BoardWay 프로젝트의 현재 구현 상태, 기술적 당면 과제, 그리고 향후 개발 방향성을 정리한 문서입니다.
 
-마지막 갱신: 2026-05-16
-
 ---
 
 ## 🏗 현재 기술 스택
@@ -83,19 +81,3 @@
 - [ ] 푸시 알림 (Expo Notifications)
 - [ ] 위치 서비스 고도화
 
----
-
-## 🏃 다음 세션 시작 시 (맥북에서 이어서)
-
-1. `git pull origin main`
-2. **백엔드 셋업**:
-   - `cd backend && pip install -r requirements.txt`
-   - `backend/.env` 새로 생성 (`SECRET_KEY=아무문자열아무거나` 한 줄이면 충분)
-   - `python seed.py` (시드 채우기 — 새 DB)
-   - `python main.py`
-3. **프론트 셋업**:
-   - `cd frontend && npm install`
-   - `frontend/.env` 새로 생성 (`EXPO_PUBLIC_API_URL=http://맥북LAN_IP:8000`)
-   - `npx expo start --web`
-4. 브라우저에서 가입·로그인 (DB 새 거니까 새 가입 필요)
-5. **다음 작업**: Phase 1의 "Alembic 도입" 또는 Phase 2의 "포인트 시스템 백엔드 이전". 사용자 의향에 따라.
