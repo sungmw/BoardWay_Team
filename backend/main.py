@@ -8,11 +8,10 @@ from typing import List
 from jose import JWTError, jwt
 
 import models, schemas, crud
-from database import engine, get_db
+from database import get_db
 from auth_utils import verify_password, create_access_token, SECRET_KEY, ALGORITHM
 
-# 테이블 생성 (개발 편의상 앱 실행시 자동 생성)
-models.Base.metadata.create_all(bind=engine)
+# 스키마는 Alembic 으로 관리합니다 (alembic upgrade head). create_all 제거.
 
 app = FastAPI(title="BoardWay API")
 

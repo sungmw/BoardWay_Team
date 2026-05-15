@@ -1,8 +1,7 @@
 import models
-from database import engine, SessionLocal, Base
+from database import SessionLocal
 
-# DB 테이블 생성
-Base.metadata.create_all(bind=engine)
+# 테이블은 Alembic 으로 관리합니다. 시드 전 `alembic upgrade head` 가 선행되어 있어야 합니다.
 
 GAMES_DATA = [
     {"id": "g1", "name": "스플랜더", "players": "2-4인", "difficulty": "보통", "description": "보석을 모아 카드를 사고 점수를 획득하는 최고의 입문용 전략 게임", "ruleUrl": "https://www.youtube.com/embed/3Y-VZ3pCSlw", "image": "/images/g1.png"},
