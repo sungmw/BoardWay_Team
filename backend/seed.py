@@ -103,4 +103,14 @@ def seed_db(force_reset=False):
     db.close()
 
 if __name__ == "__main__":
-    seed_db(force_reset=True)
+    import sys
+    force_reset = "--reset" in sys.argv
+    if force_reset:
+        confirm = input(
+            "⚠️  --reset 플래그가 지정되었습니다. "
+            "모든 데이터(사용자/매치/참가자)가 삭제됩니다. 계속하시겠습니까? (yes/no): "
+        )
+        if confirm.strip().lower() != "yes":
+            print("취소되었습니다.")
+            sys.exit(0)
+    seed_db(force_reset=force_reset)

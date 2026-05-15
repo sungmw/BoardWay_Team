@@ -16,9 +16,14 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="BoardWay API")
 
+# 개발 기본값: Expo Web(8081), Vite(5173), Expo dev(19006), 휴대폰 LAN IP에서의 접근까지 허용
+DEFAULT_DEV_ORIGINS = "http://localhost:8081,http://localhost:5173,http://localhost:19006"
+_origins_env = os.getenv("CORS_ORIGINS", DEFAULT_DEV_ORIGINS)
+ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,7 +91,7 @@ def format_match(m):
             "participants": [{"nickname": p.nickname, "mannerScore": p.mannerScore, "isMe": False} for p in m.participants]
         }
     except Exception as e:
-        print(f"Error formatting match {m.id}: {e}")
+        print(f"Error formatting match {getattr(m, 'match_id', m.id)}: {e}")
         return None
 
 def public_url(request: Request, path_or_url: str):

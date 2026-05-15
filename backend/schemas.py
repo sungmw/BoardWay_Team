@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 
 class LocationBase(BaseModel):
@@ -32,13 +32,13 @@ class MatchResponse(MatchBase):
         from_attributes = True
 
 class UserCreate(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     nickname: str
     mannerScore: int = 5
 
 class UserResponse(BaseModel):
-    email: str
+    email: EmailStr
     nickname: str
     mannerScore: int
 
@@ -46,7 +46,7 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class Token(BaseModel):
@@ -54,7 +54,7 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
 
 class GameBase(BaseModel):
     id: str
