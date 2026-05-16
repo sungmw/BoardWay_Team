@@ -28,9 +28,8 @@ Thumbs.db
 .idea/
 .claude/
 
-# AI 도구별 로컬 컨텍스트 (각자 머신에서만 유지, 추적 안 함)
+# Claude Code 로컬 컨텍스트 (각자 머신에서만 유지)
 CLAUDE.md
-AGENTS.md
 
 # Project specific
 extracted_texts.txt
