@@ -1,7 +1,29 @@
+from datetime import date, timedelta
+
 import models
 from database import SessionLocal
 
 # 테이블은 Alembic 으로 관리합니다. 시드 전 `alembic upgrade head` 가 선행되어 있어야 합니다.
+
+# MATCHES_DATA 의 하드코딩 날짜를 "오늘 기준 offset" 으로 재해석.
+# 매번 시드할 때 매치들이 오늘 기준 -5~+1 일에 자동 분포 → 데모 시점이 어디든
+# "지난 매치 / 진행 중 / 미래 매치" 가 항상 섞여 있어 검증 막힘 없음.
+_DATE_OFFSETS = {
+    "2026-05-11": -5,
+    "2026-05-12": -4,
+    "2026-05-13": -3,
+    "2026-05-14": -2,
+    "2026-05-15": -1,
+    "2026-05-16": 0,
+    "2026-05-17": 1,
+}
+
+def _resolve_date(hardcoded: str) -> str:
+    today = date.today()
+    offset = _DATE_OFFSETS.get(hardcoded)
+    if offset is None:
+        return hardcoded  # 매핑에 없으면 원본 그대로 (방어)
+    return (today + timedelta(days=offset)).isoformat()
 
 GAMES_DATA = [
     {"id": "g1", "name": "스플랜더", "players": "2-4인", "difficulty": "보통", "description": "보석을 모아 카드를 사고 점수를 획득하는 최고의 입문용 전략 게임", "ruleUrl": "https://www.youtube.com/embed/3Y-VZ3pCSlw", "image": "/images/g1.png"},
@@ -82,9 +104,10 @@ def seed_db(force_reset=False):
         ))
 
     for m in MATCHES_DATA:
+        resolved_date = _resolve_date(m["date"])
         db_match = models.Match(
             match_id=m["id"], games=m["games"], difficulty=m["difficulty"],
-            tags=m["tags"], date=m["date"], startTime=m["startTime"], ruleVideoUrls=m["ruleVideoUrls"],
+            tags=m["tags"], date=resolved_date, startTime=m["startTime"], ruleVideoUrls=m["ruleVideoUrls"],
             venue=m["location"]["venue"], branch=m["location"]["branch"],
             address=m["location"]["address"], maxPlayers=m["maxPlayers"]
         )
