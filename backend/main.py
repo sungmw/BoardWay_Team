@@ -235,7 +235,6 @@ def adjust_my_points(
 @app.get(
     "/me/points/history",
     response_model=List[schemas.PointHistoryItem],
-    response_model_by_alias=True,
 )
 def read_my_point_history(
     db: Session = Depends(get_db),

@@ -84,7 +84,9 @@ class PointHistoryItem(BaseModel):
     type: str
     amount: int
     description: str
-    date: datetime = Field(..., alias="created_at")
+    # ORM 컬럼은 created_at 인데 응답 키는 'date' 로 노출 (프론트 친화).
+    # Pydantic v2 의 validation_alias 는 입력 전용 alias — 출력은 필드명 그대로.
+    date: datetime = Field(..., validation_alias="created_at")
 
     @field_validator("id", mode="before")
     @classmethod
