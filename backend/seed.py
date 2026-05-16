@@ -82,6 +82,9 @@ def seed_db(force_reset=False):
 
     if force_reset:
         print("기존 데이터를 초기화합니다...")
+        db.query(models.Message).delete()
+        db.query(models.Review).delete()
+        db.query(models.PointHistory).delete()
         db.query(models.MatchParticipant).delete()
         db.query(models.Match).delete()
         db.query(models.Game).delete()
