@@ -88,8 +88,21 @@ class Match(Base):
 
     maxPlayers = Column(Integer)
     host_nickname = Column(String, nullable=True)  # 매치당 호스트 한 명. 없으면 NULL.
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # 시드 매치는 NULL.
+    host_settled = Column(Boolean, default=False, nullable=False)  # 호스트 페이백 완료 여부.
 
     participants = relationship("MatchParticipant", back_populates="match", cascade="all, delete-orphan")
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    match_id = Column(Integer, ForeignKey("matches.id"), nullable=False, index=True)
+    sender_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    sender_nickname = Column(String, nullable=False)  # 비정규화 캐시 — 메시지 표시 시 user 조회 안 해도 됨
+    content = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
 
 class MatchParticipant(Base):
     __tablename__ = "match_participants"
@@ -98,5 +111,6 @@ class MatchParticipant(Base):
     match_id = Column(Integer, ForeignKey("matches.id"))
     nickname = Column(String)
     mannerScore = Column(Integer)
-    
+    settled = Column(Boolean, default=False, nullable=False)  # 이 참가자의 정산 완료 여부.
+
     match = relationship("Match", back_populates="participants")

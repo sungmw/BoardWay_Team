@@ -118,18 +118,28 @@ def get_match(match_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
     return format_match(match)
 
-# Note: In a real scenario, this would be restricted to Admin/Venues
 @app.post("/matches")
-def create_match(match: schemas.MatchCreate, db: Session = Depends(get_db)):
-    new_match = crud.create_match(db, match)
+def create_match(
+    match: schemas.MatchCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    new_match = crud.create_match(db, match, creator_user_id=current_user.id)
     return format_match(new_match)
 
-# Note: In a real scenario, this would be restricted to Admin/Venues
+
 @app.delete("/matches/{match_id}")
-def delete_match(match_id: str, db: Session = Depends(get_db)):
+def delete_match(
+    match_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     db_match = crud.get_match_by_match_id(db, match_id)
     if not db_match:
         raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+    # 만든 사람만 삭제 가능. 시드 매치 (created_by_user_id IS NULL) 는 아무도 못 지움.
+    if db_match.created_by_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="이 매치를 삭제할 권한이 없습니다.")
     db.delete(db_match)
     db.commit()
     return {"message": "삭제 완료"}
@@ -274,6 +284,76 @@ def my_reviewed_match_ids(
     current_user: models.User = Depends(get_current_user),
 ):
     return crud.get_reviewer_match_business_ids(db, current_user.id)
+
+
+@app.post("/matches/{match_id}/settle", response_model=schemas.SettleResponse)
+def settle_match(
+    match_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    result = crud.settle_match_participant(db, match_id, current_user)
+    if result == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+    if result == "NOT_PARTICIPANT":
+        raise HTTPException(status_code=403, detail="이 매치에 참여하지 않았습니다.")
+    if result == "NOT_ENDED":
+        raise HTTPException(status_code=400, detail="매치가 아직 종료되지 않았습니다.")
+    if result == "ALREADY_SETTLED":
+        raise HTTPException(status_code=400, detail="이미 정산된 매치입니다.")
+
+    is_host = result["is_host"]
+    reward = result["reward_amount"]
+    if is_host and reward > 0:
+        msg = f"참여자들의 높은 평가로 방장 리워드 {reward:,}P가 지급되었습니다! ✨"
+    elif is_host:
+        msg = "방장 평균 별점이 기준에 미달하여 페이백이 지급되지 않았습니다."
+    else:
+        msg = "매너 점수가 정산되었습니다."
+
+    return schemas.SettleResponse(
+        settled=True, is_host=is_host, reward_amount=reward, message=msg
+    )
+
+
+@app.get("/me/settled-matches", response_model=List[str])
+def my_settled_match_ids(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return crud.get_settled_match_business_ids(db, current_user.nickname)
+
+
+@app.get("/matches/{match_id}/messages", response_model=List[schemas.MessageItem])
+def list_match_messages_endpoint(
+    match_id: str,
+    after_id: int = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    result = crud.list_match_messages(db, match_id, current_user.nickname, after_id)
+    if result == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+    if result == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail="이 매치에 참여한 사용자만 채팅을 볼 수 있습니다.")
+    return result
+
+
+@app.post("/matches/{match_id}/messages", response_model=schemas.MessageItem)
+def create_match_message_endpoint(
+    match_id: str,
+    payload: schemas.MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not payload.content or not payload.content.strip():
+        raise HTTPException(status_code=400, detail="메시지 내용이 비어 있습니다.")
+    result = crud.create_match_message(db, match_id, current_user, payload.content.strip())
+    if result == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+    if result == "FORBIDDEN":
+        raise HTTPException(status_code=403, detail="이 매치에 참여한 사용자만 채팅을 보낼 수 있습니다.")
+    return result
 
 if __name__ == "__main__":
     import uvicorn

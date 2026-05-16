@@ -36,6 +36,27 @@ class JoinMatchRequest(BaseModel):
     role: str = "participant"  # "participant" | "host"
 
 
+class SettleResponse(BaseModel):
+    settled: bool
+    is_host: bool
+    reward_amount: int = 0
+    message: str
+
+
+class MessageCreate(BaseModel):
+    content: str
+
+
+class MessageItem(BaseModel):
+    id: int
+    sender_nickname: str
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str

@@ -31,10 +31,7 @@ def get_matches(db: Session):
 def get_match_by_match_id(db: Session, match_id: str):
     return db.query(models.Match).filter(models.Match.match_id == match_id).first()
 
-def create_match(db: Session, match: schemas.MatchCreate):
-    """
-    Admin or System creates matches based on venue availability.
-    """
+def create_match(db: Session, match: schemas.MatchCreate, creator_user_id: int = None):
     new_match_id = f"m-{str(uuid.uuid4())[:8]}"
     db_match = models.Match(
         match_id=new_match_id,
@@ -47,7 +44,8 @@ def create_match(db: Session, match: schemas.MatchCreate):
         venue=match.location.venue,
         branch=match.location.branch,
         address=match.location.address,
-        maxPlayers=match.maxPlayers
+        maxPlayers=match.maxPlayers,
+        created_by_user_id=creator_user_id,
     )
     db.add(db_match)
     db.commit()
@@ -155,7 +153,9 @@ def _recompute_manner_score(db: Session, nickname: str):
         return
     user = get_user_by_nickname(db, nickname)
     if user:
-        user.mannerScore = int(round(avg))
+        # 학교식 반올림 (round-half-up) — Python 의 round() 는 banker's (round-half-to-even).
+        # 별점은 양수만이라 (avg + 0.5) 후 int() 변환이 안전.
+        user.mannerScore = int(avg + 0.5)
 
 
 def create_match_reviews(db: Session, reviewer_id: int, match_business_id: str, items, comment: str = ""):
@@ -204,6 +204,88 @@ def create_match_reviews(db: Session, reviewer_id: int, match_business_id: str, 
     return created
 
 
+HOST_REWARD_AMOUNT = 3000
+HOST_REWARD_MIN_AVG = 4.0
+MATCH_DURATION_MINUTES = 120
+
+
+def settle_match_participant(db: Session, match_business_id: str, user):
+    """매치 종료 후 본인 정산 트리거.
+
+    Returns dict: { code, is_host, reward_amount, message } 또는
+            str: 에러 코드 ("NOT_FOUND", "NOT_PARTICIPANT", "NOT_ENDED", "ALREADY_SETTLED")
+    """
+    from datetime import datetime, timedelta
+
+    match = get_match_by_match_id(db, match_business_id)
+    if not match:
+        return "NOT_FOUND"
+
+    participant = db.query(models.MatchParticipant).filter(
+        models.MatchParticipant.match_id == match.id,
+        models.MatchParticipant.nickname == user.nickname,
+    ).first()
+    if not participant:
+        return "NOT_PARTICIPANT"
+
+    # 매치 종료 시각 = date + startTime + 2시간. 종료 안 됐으면 거부.
+    try:
+        match_start = datetime.fromisoformat(f"{match.date}T{match.startTime}:00")
+    except ValueError:
+        return "NOT_FOUND"
+    match_end = match_start + timedelta(minutes=MATCH_DURATION_MINUTES)
+    if datetime.now() < match_end:
+        return "NOT_ENDED"
+
+    if participant.settled:
+        return "ALREADY_SETTLED"
+
+    is_host = (match.host_nickname == user.nickname)
+    reward_amount = 0
+
+    # 호스트 페이백 — 받은 별점 평균 ≥ 4.0 인 경우만.
+    if is_host and not match.host_settled:
+        from sqlalchemy import func
+        avg = (
+            db.query(func.avg(models.Review.rating))
+            .filter(
+                models.Review.reviewee_nickname == user.nickname,
+                models.Review.match_id == match.id,
+            )
+            .scalar()
+        )
+        if avg is not None and avg >= HOST_REWARD_MIN_AVG:
+            # 페이백 + 매너 온도 자동 갱신은 이미 일어났음 (리뷰 시점).
+            add_user_points(
+                db, user.nickname, HOST_REWARD_AMOUNT,
+                f"[{', '.join(match.games or [])}] 방장 리워드 페이백",
+            )
+            reward_amount = HOST_REWARD_AMOUNT
+        match.host_settled = True
+
+    participant.settled = True
+    db.commit()
+
+    return {
+        "is_host": is_host,
+        "reward_amount": reward_amount,
+    }
+
+
+def get_settled_match_business_ids(db: Session, nickname: str):
+    """이 사용자가 정산 완료한 매치들의 비즈니스 ID 리스트."""
+    rows = (
+        db.query(models.Match.match_id)
+        .join(models.MatchParticipant, models.MatchParticipant.match_id == models.Match.id)
+        .filter(
+            models.MatchParticipant.nickname == nickname,
+            models.MatchParticipant.settled == True,  # noqa: E712
+        )
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
 def get_reviewer_match_business_ids(db: Session, reviewer_id: int):
     """이 사용자가 리뷰 완료한 매치들의 비즈니스 ID(예: 'm1') 리스트."""
     rows = (
@@ -214,6 +296,54 @@ def get_reviewer_match_business_ids(db: Session, reviewer_id: int):
         .all()
     )
     return [r[0] for r in rows]
+
+
+def _is_match_participant(db: Session, match, nickname: str) -> bool:
+    """이 매치에 nickname 으로 참여 중인지."""
+    return any(p.nickname == nickname for p in match.participants)
+
+
+def list_match_messages(db: Session, match_business_id: str, requester_nickname: str, after_id: int = None):
+    """매치 메시지 조회.
+
+    Returns:
+        - "NOT_FOUND": 매치 없음
+        - "FORBIDDEN": 참여자 아님
+        - List[Message]: 메시지 (id 오름차순)
+    """
+    match = get_match_by_match_id(db, match_business_id)
+    if not match:
+        return "NOT_FOUND"
+    if not _is_match_participant(db, match, requester_nickname):
+        return "FORBIDDEN"
+
+    q = db.query(models.Message).filter(models.Message.match_id == match.id)
+    if after_id is not None:
+        q = q.filter(models.Message.id > after_id)
+    return q.order_by(models.Message.id.asc()).limit(200).all()
+
+
+def create_match_message(db: Session, match_business_id: str, sender, content: str):
+    """매치 메시지 작성.
+
+    sender 는 User ORM 객체. 참여자만 작성 가능.
+    """
+    match = get_match_by_match_id(db, match_business_id)
+    if not match:
+        return "NOT_FOUND"
+    if not _is_match_participant(db, match, sender.nickname):
+        return "FORBIDDEN"
+
+    msg = models.Message(
+        match_id=match.id,
+        sender_user_id=sender.id,
+        sender_nickname=sender.nickname,
+        content=content,
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return msg
 
 
 def get_user_point_history(db: Session, user_id: int):
