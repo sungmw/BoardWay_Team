@@ -1,4 +1,5 @@
 import uuid
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 import models, schemas
 from auth_utils import get_password_hash
@@ -140,8 +141,25 @@ def add_user_points(db: Session, nickname: str, delta: int, description: str = "
     return user
 
 
+def _recompute_manner_score(db: Session, nickname: str):
+    """이 닉네임이 지금까지 받은 모든 별점의 평균을 User.mannerScore 로 갱신.
+
+    트랜잭션 안에서 호출되는 헬퍼 — 별도 commit 안 함.
+    """
+    avg = (
+        db.query(func.avg(models.Review.rating))
+        .filter(models.Review.reviewee_nickname == nickname)
+        .scalar()
+    )
+    if avg is None:
+        return
+    user = get_user_by_nickname(db, nickname)
+    if user:
+        user.mannerScore = int(round(avg))
+
+
 def create_match_reviews(db: Session, reviewer_id: int, match_business_id: str, items, comment: str = ""):
-    """한 매치에 대한 참여자별 리뷰 N개를 한 트랜잭션으로 INSERT.
+    """한 매치에 대한 참여자별 리뷰 N개를 한 트랜잭션으로 INSERT + reviewee 들의 매너 온도 자동 갱신.
 
     Returns:
         - None: 매치 못 찾음
@@ -160,8 +178,8 @@ def create_match_reviews(db: Session, reviewer_id: int, match_business_id: str, 
         return "ALREADY_REVIEWED"
 
     created = []
+    affected_nicknames = set()
     for item in items:
-        # 자기 자신 리뷰는 건너뜀 (방어적 — 프론트에서 이미 필터링하지만)
         row = models.Review(
             reviewer_id=reviewer_id,
             reviewee_nickname=item.reviewee_nickname,
@@ -171,6 +189,15 @@ def create_match_reviews(db: Session, reviewer_id: int, match_business_id: str, 
         )
         db.add(row)
         created.append(row)
+        affected_nicknames.add(item.reviewee_nickname)
+
+    # flush: INSERT 가 같은 트랜잭션의 후속 SELECT 에 보이게 함 (commit 전).
+    # 이 한 줄이 없으면 avg() 가 방금 추가한 row 를 못 보고 옛 평균을 반환.
+    db.flush()
+
+    for nickname in affected_nicknames:
+        _recompute_manner_score(db, nickname)
+
     db.commit()
     for row in created:
         db.refresh(row)
