@@ -6,6 +6,7 @@ import { commonStyles } from '../theme/styles';
 import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { notify } from '../utils/dialog';
 
 // 달력 한국어 설정
 LocaleConfig.locales['kr'] = {
@@ -74,9 +75,9 @@ export default function MyMatchesScreen({ navigation }) {
     const isHost = hostMap[match.id] === user.nickname;
     const result = await settleMatchReward(match.id, isHost, match.games.join(', '));
     if (result.success) {
-      Alert.alert('정산 완료', result.message);
+      notify('정산 완료', result.message);
     } else {
-      Alert.alert('알림', result.message);
+      notify('알림', result.message);
     }
   };
 
@@ -150,12 +151,7 @@ export default function MyMatchesScreen({ navigation }) {
               </TouchableOpacity>
             )
           ) : isWithinWindow ? (
-            <View style={[styles.reviewBtn, styles.expiredBtn]}>
-              <Ionicons name="time-outline" size={16} color={colors.error} />
-              <Text style={styles.expiredBtnText}>리뷰 기간 만료 (30분 경과)</Text>
-            </View>
-          ) : isWithinWindow ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.reviewBtn}
               onPress={() => navigation.navigate('MatchReview', { match: item })}
             >

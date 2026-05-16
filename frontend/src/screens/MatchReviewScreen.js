@@ -1,14 +1,15 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 import { AuthContext } from '../context/AuthContext';
 import { MatchContext } from '../context/MatchContext';
+import { notify } from '../utils/dialog';
 
 export default function MatchReviewScreen({ route, navigation }) {
   const { match } = route.params;
-  const { user, rechargePoints, completeReview } = useContext(AuthContext);
+  const { user, rechargePoints, submitMatchReviews } = useContext(AuthContext);
   const { hostMap } = useContext(MatchContext);
   
   const participants = match.participants.filter(p => p.nickname !== user.nickname);
@@ -30,24 +31,34 @@ export default function MatchReviewScreen({ route, navigation }) {
     const now = new Date();
 
     if (now > reviewDeadline) {
-      Alert.alert('리뷰 기간 만료', '매치 종료 후 30분이 경과하여 리뷰를 남길 수 없습니다. (매너 온도 및 리워드에 반영되지 않습니다)');
+      notify('리뷰 기간 만료', '매치 종료 후 30분이 경과하여 리뷰를 남길 수 없습니다. (매너 온도 및 리워드에 반영되지 않습니다)');
       navigation.goBack();
       return;
     }
 
     if (Object.keys(ratings).length < participants.length) {
-      Alert.alert('알림', '모든 참여자에 대한 리뷰를 남겨주세요.');
+      notify('알림', '모든 참여자에 대한 리뷰를 남겨주세요.');
+      return;
+    }
+
+    // {nickname: score} 객체 → [{reviewee_nickname, rating}] 배열 변환
+    const reviewItems = Object.entries(ratings).map(([nickname, rating]) => ({
+      reviewee_nickname: nickname,
+      rating,
+    }));
+
+    const result = await submitMatchReviews(match.id, reviewItems, comment);
+    if (!result.success) {
+      notify('리뷰 제출 실패', result.message);
       return;
     }
 
     // 방장 리워드 로직 (데모용 가상 로직)
     if (isUserHost) {
-      Alert.alert('리뷰 완료', '리뷰를 남겨주셔서 감사합니다!\n모든 참여자의 리뷰가 완료되거나 제한시간이 지나면 방장 리워드가 정산됩니다.');
+      notify('리뷰 완료', '리뷰를 남겨주셔서 감사합니다!\n모든 참여자의 리뷰가 완료되거나 제한시간이 지나면 방장 리워드가 정산됩니다.');
     } else {
-      Alert.alert('리뷰 완료', '리뷰를 남겨주셔서 감사합니다! 소중한 의견이 매너 온도에 반영됩니다.');
+      notify('리뷰 완료', '리뷰를 남겨주셔서 감사합니다! 소중한 의견이 매너 온도에 반영됩니다.');
     }
-    
-    await completeReview(match.id);
     navigation.goBack();
   };
 

@@ -1,10 +1,10 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const AuthContext = createContext();
 
 import { API_URL } from '../config';
+import { notify } from '../utils/dialog';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     if (!email || !password) {
-      Alert.alert('알림', '이메일과 비밀번호를 입력해주세요.');
+      notify('알림', '이메일과 비밀번호를 입력해주세요.');
       return false;
     }
 
@@ -73,19 +73,19 @@ export const AuthProvider = ({ children }) => {
         await AsyncStorage.setItem('userToken', userToken);
         return true;
       } else {
-        Alert.alert('로그인 실패', data.detail || '이메일 또는 비밀번호를 확인해주세요.');
+        notify('로그인 실패', data.detail || '이메일 또는 비밀번호를 확인해주세요.');
         return false;
       }
     } catch (error) {
       console.error('로그인 에러:', error);
-      Alert.alert('에러', '서버와 연결할 수 없습니다.');
+      notify('에러', '서버와 연결할 수 없습니다.');
       return false;
     }
   };
 
   const signup = async (email, password, nickname) => {
     if (!email || !password || !nickname) {
-      Alert.alert('알림', '모든 정보를 입력해주세요.');
+      notify('알림', '모든 정보를 입력해주세요.');
       return false;
     }
 
@@ -99,15 +99,15 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('가입 완료', '회원가입이 완료되었습니다! 로그인 해주세요.');
+        notify('가입 완료', '회원가입이 완료되었습니다! 로그인 해주세요.');
         return true;
       } else {
-        Alert.alert('가입 실패', data.detail || '이미 사용 중인 이메일이거나 오류가 발생했습니다.');
+        notify('가입 실패', data.detail || '이미 사용 중인 이메일이거나 오류가 발생했습니다.');
         return false;
       }
     } catch (error) {
       console.error('회원가입 에러:', error);
-      Alert.alert('에러', '서버와 연결할 수 없습니다.');
+      notify('에러', '서버와 연결할 수 없습니다.');
       return false;
     }
   };
@@ -121,8 +121,8 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       setPoints(user.points || 0); // 잔액은 서버에서 받은 user.points
-      loadUserPointData(user.email); // 히스토리만 AsyncStorage
-      loadUserReviewData(user.email);
+      loadUserPointHistory(); // 히스토리도 서버에서
+      loadUserReviewData(); // 리뷰 완료 매치 ID 리스트도 서버에서
       loadUserSettlementData(user.email);
     } else {
       setPoints(0);
@@ -130,24 +130,39 @@ export const AuthProvider = ({ children }) => {
       setReviewedMatches([]);
       setSettledMatches([]);
     }
-  }, [user]);
+  }, [user, token]);
 
-  const loadUserPointData = async (email) => {
-    // 잔액(points)은 user.points 에서 가져오므로 여기선 히스토리만.
+  const loadUserPointHistory = async () => {
+    if (!token) return;
     try {
-      const storedHistory = await AsyncStorage.getItem(`history_${email}`);
-      setPointHistory(storedHistory ? JSON.parse(storedHistory) : []);
+      const response = await fetch(`${API_URL}/me/points/history`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        console.error('포인트 히스토리 조회 실패', response.status);
+        return;
+      }
+      const data = await response.json();
+      setPointHistory(data);
     } catch (e) {
       console.error('Failed to load point history', e);
     }
   };
 
-  const loadUserReviewData = async (email) => {
+  const loadUserReviewData = async () => {
+    if (!token) return;
     try {
-      const storedReviews = await AsyncStorage.getItem(`reviewed_${email}`);
-      setReviewedMatches(storedReviews ? JSON.parse(storedReviews) : []);
+      const response = await fetch(`${API_URL}/me/reviewed-matches`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        console.error('리뷰 완료 매치 조회 실패', response.status);
+        return;
+      }
+      const data = await response.json();
+      setReviewedMatches(data); // 비즈니스 ID 리스트 (예: ["m1", "m3"])
     } catch (e) {
-      console.error('Failed to load review data', e);
+      console.error('Failed to load reviewed matches', e);
     }
   };
 
@@ -170,7 +185,7 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ delta: amount }),
+        body: JSON.stringify({ delta: amount, description }),
       });
       if (!response.ok) {
         console.error('포인트 적립 실패', response.status);
@@ -178,18 +193,7 @@ export const AuthProvider = ({ children }) => {
       }
       const updatedUser = await response.json();
       setUser(updatedUser); // points 는 useEffect 가 갱신
-
-      // 히스토리는 그대로 AsyncStorage (별도 테이블 도입은 다음 단계)
-      const historyItem = {
-        id: Date.now().toString(),
-        type: '충전',
-        amount: amount,
-        date: new Date().toISOString(),
-        description: description,
-      };
-      const newHistory = [historyItem, ...pointHistory];
-      setPointHistory(newHistory);
-      await AsyncStorage.setItem(`history_${user.email}`, JSON.stringify(newHistory));
+      await loadUserPointHistory();
       return true;
     } catch (e) {
       console.error('Failed to recharge points', e);
@@ -208,24 +212,14 @@ export const AuthProvider = ({ children }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ delta: -amount }),
+        body: JSON.stringify({ delta: -amount, description }),
       });
       if (!response.ok) {
         return { success: false, message: '서버 오류가 발생했습니다.' };
       }
       const updatedUser = await response.json();
       setUser(updatedUser);
-
-      const historyItem = {
-        id: Date.now().toString(),
-        type: '사용',
-        amount: amount,
-        date: new Date().toISOString(),
-        description: description,
-      };
-      const newHistory = [historyItem, ...pointHistory];
-      setPointHistory(newHistory);
-      await AsyncStorage.setItem(`history_${user.email}`, JSON.stringify(newHistory));
+      await loadUserPointHistory();
       return { success: true };
     } catch (e) {
       console.error('Failed to use points', e);
@@ -233,14 +227,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const completeReview = async (matchId) => {
-    if (!user) return;
-    const newReviewed = [...reviewedMatches, matchId];
-    setReviewedMatches(newReviewed);
+  const submitMatchReviews = async (matchId, reviews, comment = '') => {
+    if (!user || !token) return { success: false, message: '로그인이 필요합니다.' };
     try {
-      await AsyncStorage.setItem(`reviewed_${user.email}`, JSON.stringify(newReviewed));
+      const response = await fetch(`${API_URL}/me/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ match_id: matchId, comment, reviews }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        return { success: false, message: data.detail || '리뷰 제출에 실패했습니다.' };
+      }
+      await loadUserReviewData(); // 완료 매치 목록 서버에서 다시
+      return { success: true };
     } catch (e) {
-      console.error('Failed to save review data', e);
+      console.error('Failed to submit reviews', e);
+      return { success: false, message: '서버와 연결할 수 없습니다.' };
     }
   };
 
@@ -283,7 +289,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{ 
       user, token, loading, login, signup, logout, 
       points, pointHistory, rechargePoints, usePoints, 
-      reviewedMatches, completeReview,
+      reviewedMatches, submitMatchReviews,
       settledMatches, settleMatchReward
     }}>
       {children}

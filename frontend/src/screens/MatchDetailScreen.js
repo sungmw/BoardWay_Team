@@ -1,10 +1,11 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Alert, SafeAreaView, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, SafeAreaView, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
+import { notify, confirmAction } from '../utils/dialog';
 import YoutubePlayer from "react-native-youtube-iframe";
 import { WebView } from 'react-native-webview';
 
@@ -68,7 +69,7 @@ export default function MatchDetailScreen({ route, navigation }) {
 
   const handleJoin = async () => {
     if (points < 12000) {
-      Alert.alert('포인트 부족', '보유 포인트가 부족합니다. 충전 후 이용해주세요.');
+      notify('포인트 부족', '보유 포인트가 부족합니다. 충전 후 이용해주세요.');
       return;
     }
 
@@ -80,7 +81,7 @@ export default function MatchDetailScreen({ route, navigation }) {
     const pointResult = await usePoints(cost, `[${match.games.join(', ')}] 매치 참여 결제 (${selectedRole === 'host' ? '방장' : '일반'})`);
     
     if (!pointResult.success) {
-      Alert.alert('오류', pointResult.message);
+      notify('오류', pointResult.message);
       setIsJoining(false);
       return;
     }
@@ -91,10 +92,10 @@ export default function MatchDetailScreen({ route, navigation }) {
     
     if (success) {
       setModalVisible(false);
-      Alert.alert('신청 완료', '매칭 신청 및 결제가 완료되었습니다! 내 매치에서 확인하세요.');
+      notify('신청 완료', '매칭 신청 및 결제가 완료되었습니다! 내 매치에서 확인하세요.');
       navigation.navigate('MyMatches');
     } else {
-      Alert.alert('오류', '매치 참여에 실패했습니다. 다시 시도해주세요.');
+      notify('오류', '매치 참여에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -210,13 +211,11 @@ export default function MatchDetailScreen({ route, navigation }) {
           disabled={isAlreadyJoined || isFull || isStarted}
           onPress={() => {
             if (!user) {
-              Alert.alert(
+              confirmAction(
                 '로그인 필요',
                 '매칭 신청은 로그인 후 이용 가능합니다.',
-                [
-                  { text: '로그인하기', onPress: () => navigation.navigate('Login') },
-                  { text: '취소', onPress: () => {} }
-                ]
+                () => navigation.navigate('Login'),
+                { confirmText: '로그인하기' }
               );
             } else {
               setModalVisible(true);
@@ -267,7 +266,7 @@ export default function MatchDetailScreen({ route, navigation }) {
                     ]}
                     onPress={() => {
                       if (hostMap[match.id]) {
-                        Alert.alert('알림', '이미 다른 방장이 신청된 매치입니다.');
+                        notify('알림', '이미 다른 방장이 신청된 매치입니다.');
                       } else {
                         setSelectedRole('host');
                       }

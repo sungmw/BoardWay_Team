@@ -1,46 +1,41 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 import { AuthContext } from '../context/AuthContext';
+import { notify, confirmAction } from '../utils/dialog';
 
 export default function MyPageScreen({ navigation }) {
   const { user, logout, points, rechargePoints } = useContext(AuthContext);
   const [rechargeModalVisible, setRechargeModalVisible] = useState(false);
 
   const handleLogout = async () => {
-    Alert.alert(
+    confirmAction(
       "로그아웃",
       "정말 로그아웃 하시겠습니까?",
-      [
-        { text: "취소", style: "cancel" },
-        { 
-          text: "로그아웃", 
-          style: "destructive",
-          onPress: async () => {
-            await logout();
-          }
-        }
-      ]
+      async () => {
+        await logout();
+        navigation.reset({ index: 0, routes: [{ name: 'Intro' }] });
+      },
+      { confirmText: "로그아웃", destructive: true }
     );
   };
 
   const handleRecharge = (amount) => {
-    Alert.alert(
+    confirmAction(
       "포인트 충전",
       `${amount.toLocaleString()}원을 결제하시겠습니까?`,
-      [
-        { text: "취소", style: "cancel" },
-        { 
-          text: "결제하기", 
-          onPress: () => {
-            rechargePoints(amount);
-            setRechargeModalVisible(false);
-            Alert.alert("충전 완료", `${amount.toLocaleString()} 포인트가 충전되었습니다.`);
-          }
+      async () => {
+        const ok = await rechargePoints(amount);
+        setRechargeModalVisible(false);
+        if (ok) {
+          notify("충전 완료", `${amount.toLocaleString()} 포인트가 충전되었습니다.`);
+        } else {
+          notify("충전 실패", "서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
         }
-      ]
+      },
+      { confirmText: "결제하기" }
     );
   };
 
@@ -95,45 +90,55 @@ export default function MyPageScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.profileSection}>
-            <Text style={styles.emailText}>로그인 정보가 없습니다.</Text>
+            <Text style={[styles.emailText, { marginBottom: 16 }]}>로그인 후 이용 가능한 기능입니다.</Text>
+            <TouchableOpacity
+              style={[commonStyles.button, { alignSelf: 'flex-start' }]}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={commonStyles.buttonText}>로그인 / 회원가입</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* 포인트 섹션 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>포인트 관리</Text>
-          <TouchableOpacity style={styles.menuItem} onPress={() => setRechargeModalVisible(true)}>
-            <Ionicons name="card-outline" size={24} color={colors.text} style={styles.menuIcon} />
-            <Text style={styles.menuText}>포인트 충전하기</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PointHistory')}>
-            <Ionicons name="receipt-outline" size={24} color={colors.text} style={styles.menuIcon} />
-            <Text style={styles.menuText}>포인트 사용 내역</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-          </TouchableOpacity>
-        </View>
+        {user && (
+          <>
+            {/* 포인트 섹션 */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>포인트 관리</Text>
+              <TouchableOpacity style={styles.menuItem} onPress={() => setRechargeModalVisible(true)}>
+                <Ionicons name="card-outline" size={24} color={colors.text} style={styles.menuIcon} />
+                <Text style={styles.menuText}>포인트 충전하기</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PointHistory')}>
+                <Ionicons name="receipt-outline" size={24} color={colors.text} style={styles.menuIcon} />
+                <Text style={styles.menuText}>포인트 사용 내역</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+              </TouchableOpacity>
+            </View>
 
-        {/* 메뉴 리스트 */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>내 계정</Text>
-          <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('준비 중', '프로필 수정 기능은 준비 중입니다.')}>
-            <Ionicons name="create-outline" size={24} color={colors.text} style={styles.menuIcon} />
-            <Text style={styles.menuText}>프로필 수정</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-          </TouchableOpacity>
+            {/* 메뉴 리스트 */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>내 계정</Text>
+              <TouchableOpacity style={styles.menuItem} onPress={() => notify('준비 중', '프로필 수정 기능은 준비 중입니다.')}>
+                <Ionicons name="create-outline" size={24} color={colors.text} style={styles.menuIcon} />
+                <Text style={styles.menuText}>프로필 수정</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('준비 중', '고객센터 기능은 준비 중입니다.')}>
-            <Ionicons name="help-circle-outline" size={24} color={colors.text} style={styles.menuIcon} />
-            <Text style={styles.menuText}>고객센터</Text>
-            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => notify('준비 중', '고객센터 기능은 준비 중입니다.')}>
+                <Ionicons name="help-circle-outline" size={24} color={colors.text} style={styles.menuIcon} />
+                <Text style={styles.menuText}>고객센터</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color={colors.error} style={styles.menuIcon} />
-            <Text style={[styles.menuText, { color: colors.error }]}>로그아웃</Text>
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={24} color={colors.error} style={styles.menuIcon} />
+                <Text style={[styles.menuText, { color: colors.error }]}>로그아웃</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* 충전 모달 */}

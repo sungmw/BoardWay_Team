@@ -3,21 +3,22 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 import { AuthContext } from '../context/AuthContext';
+import { notify } from '../utils/dialog';
 
 export default function SignUpScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [nickname, setNickname] = useState('');
-  
+
   const { signup } = useContext(AuthContext);
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (password !== passwordConfirm) {
-      alert('비밀번호가 일치하지 않습니다.');
+      notify('알림', '비밀번호가 일치하지 않습니다.');
       return;
     }
-    const success = signup(email, password, nickname);
+    const success = await signup(email, password, nickname);
     if (success) {
       navigation.goBack(); // 로그인 화면으로 돌아가기
     }

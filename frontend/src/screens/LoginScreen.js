@@ -14,7 +14,7 @@ export default function LoginScreen({ navigation }) {
     if (success) {
       navigation.goBack(); // 로그인 전 화면(보통 Discovery나 MatchDetail)으로 복귀
     }
-    // 실패 시 AuthContext의 Alert가 뜨고 화면은 그대로 유지됩니다.
+    // 실패 시 AuthContext 의 notify 가 뜨고 화면은 그대로 유지됩니다.
   };
 
   return (
