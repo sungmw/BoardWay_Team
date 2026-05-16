@@ -6,6 +6,7 @@ import { commonStyles } from '../theme/styles';
 import { notify } from '../utils/dialog';
 import { apiFetch } from '../utils/api';
 import { MatchContext } from '../context/MatchContext';
+import { AuthContext } from '../context/AuthContext';
 
 const DIFFICULTIES = ['쉬움', '보통', '어려움', '매우 어려움'];
 
@@ -17,6 +18,7 @@ function tomorrowISO() {
 
 export default function CreateMatchScreen({ navigation }) {
   const { fetchMatches } = useContext(MatchContext);
+  const { token } = useContext(AuthContext);
 
   const [gamesText, setGamesText] = useState('');
   const [difficulty, setDifficulty] = useState('보통');
@@ -65,7 +67,7 @@ export default function CreateMatchScreen({ navigation }) {
         location: { venue: venue.trim(), branch: branch.trim(), address: address.trim() },
         maxPlayers: players,
       };
-      const res = await apiFetch('/matches', { method: 'POST', json: body });
+      const res = await apiFetch('/matches', { method: 'POST', token, json: body });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         notify('생성 실패', data.detail || '매치 생성에 실패했습니다.');

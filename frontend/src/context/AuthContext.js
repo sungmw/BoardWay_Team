@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const AuthContext = createContext();
 
 import { notify } from '../utils/dialog';
-import { apiFetch } from '../utils/api';
+import { apiFetch, setUnauthorizedHandler } from '../utils/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -55,6 +55,7 @@ export const AuthProvider = ({ children }) => {
       const response = await apiFetch('/login', {
         method: 'POST',
         json: { email, password },
+        skipAuthHandler: true, // 401 = "비번 틀림", logout 트리거 안 함
       });
 
       const data = await response.json();
@@ -117,7 +118,7 @@ export const AuthProvider = ({ children }) => {
       setPoints(user.points || 0); // 잔액은 서버에서 받은 user.points
       loadUserPointHistory(); // 히스토리도 서버에서
       loadUserReviewData(); // 리뷰 완료 매치 ID 리스트도 서버에서
-      loadUserSettlementData(user.email);
+      loadUserSettlementData(); // 정산 완료 매치도 서버에서
     } else {
       setPoints(0);
       setPointHistory([]);
@@ -156,12 +157,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loadUserSettlementData = async (email) => {
+  const loadUserSettlementData = async () => {
+    if (!token) return;
     try {
-      const storedSettlements = await AsyncStorage.getItem(`settled_${email}`);
-      setSettledMatches(storedSettlements ? JSON.parse(storedSettlements) : []);
+      const response = await apiFetch('/me/settled-matches', { token });
+      if (!response.ok) {
+        console.error('정산 완료 매치 조회 실패', response.status);
+        return;
+      }
+      const data = await response.json();
+      setSettledMatches(data); // 비즈니스 ID 리스트
     } catch (e) {
-      console.error('Failed to load settlement data', e);
+      console.error('Failed to load settled matches', e);
     }
   };
 
@@ -231,28 +238,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const settleMatchReward = async (matchId, isHost, matchTitle) => {
-    if (!user || settledMatches.includes(matchId)) return { success: false, message: '이미 정산된 매치입니다.' };
-
-    let message = '매너 점수가 정산되었습니다.';
-    let rewardGiven = false;
-
-    if (isHost) {
-      // 방장 리워드 지급 (3000P)
-      const reward = 3000;
-      await rechargePoints(reward, `[${matchTitle}] 방장 리워드 페이백`);
-      message = `참여자들의 높은 평가로 방장 리워드 ${reward.toLocaleString()}P가 지급되었습니다! ✨`;
-      rewardGiven = true;
-    }
-
-    const newSettled = [...settledMatches, matchId];
-    setSettledMatches(newSettled);
+  const settleMatchReward = async (matchId) => {
+    if (!user || !token) return { success: false, message: '로그인이 필요합니다.' };
     try {
-      await AsyncStorage.setItem(`settled_${user.email}`, JSON.stringify(newSettled));
-      return { success: true, message, rewardGiven };
+      const response = await apiFetch(`/matches/${matchId}/settle`, { method: 'POST', token });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        return { success: false, message: data.detail || '정산에 실패했습니다.' };
+      }
+      const data = await response.json();
+      // 페이백 받았으면 잔액 갱신을 위해 user 정보 + 히스토리 재로드
+      if (data.reward_amount > 0) {
+        await fetchUserInfo(token);
+        await loadUserPointHistory();
+      }
+      await loadUserSettlementData();
+      return { success: true, message: data.message, rewardGiven: data.reward_amount > 0 };
     } catch (e) {
-      console.error('Failed to save settlement data', e);
-      return { success: false, message: '정산 처리 중 오류가 발생했습니다.' };
+      console.error('Failed to settle', e);
+      return { success: false, message: '서버와 연결할 수 없습니다.' };
     }
   };
 
@@ -265,6 +269,11 @@ export const AuthProvider = ({ children }) => {
     setSettledMatches([]);
     await AsyncStorage.removeItem('userToken');
   };
+
+  // apiFetch 가 401 을 만나면 자동 logout 트리거. mount 시 1회 등록.
+  useEffect(() => {
+    setUnauthorizedHandler(() => logout);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ 

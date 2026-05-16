@@ -72,8 +72,7 @@ export default function MyMatchesScreen({ navigation }) {
   }, [myMatches, selectedDate]);
 
   const handleSettle = async (match) => {
-    const isHost = match.host === user.nickname;
-    const result = await settleMatchReward(match.id, isHost, match.games.join(', '));
+    const result = await settleMatchReward(match.id);
     if (result.success) {
       notify('정산 완료', result.message);
     } else {

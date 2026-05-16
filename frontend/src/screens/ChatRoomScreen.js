@@ -1,57 +1,100 @@
-import React, { useState, useContext, useRef } from 'react';
+import React, { useState, useContext, useRef, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 import { AuthContext } from '../context/AuthContext';
+import { apiFetch } from '../utils/api';
+import { notify } from '../utils/dialog';
+
+const POLL_INTERVAL_MS = 5000;
 
 export default function ChatRoomScreen({ route, navigation }) {
   const { match } = route.params;
-  const { user } = useContext(AuthContext);
+  const { user, token } = useContext(AuthContext);
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    { id: '1', sender: '시스템', text: '매치 참여자들과 소통을 시작해보세요!', type: 'system', time: '14:00' },
-    { id: '2', sender: '보드왕', text: '안녕하세요! 다들 게임 룰 영상 보셨나요?', type: 'other', time: '14:05' },
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [sending, setSending] = useState(false);
   const flatListRef = useRef();
+  const lastIdRef = useRef(0); // 폴링용 — 마지막으로 받은 메시지 id
 
-  const handleSend = () => {
-    if (message.trim() === '') return;
+  // 시간 표시용 (HH:MM)
+  const formatTime = (iso) => {
+    try {
+      const d = new Date(iso);
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    } catch { return ''; }
+  };
 
-    const newMessage = {
-      id: Date.now().toString(),
-      sender: user.nickname,
-      text: message,
-      type: 'me',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
+  const fetchMessages = useCallback(async ({ initial = false } = {}) => {
+    if (!token) return;
+    try {
+      const url = initial
+        ? `/matches/${match.id}/messages`
+        : `/matches/${match.id}/messages?after_id=${lastIdRef.current}`;
+      const res = await apiFetch(url, { token });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) return;
 
-    setMessages([...messages, newMessage]);
+      // initial 이면 전체 교체, 아니면 append.
+      setMessages(prev => initial ? data : [...prev, ...data]);
+      lastIdRef.current = data[data.length - 1].id;
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: !initial }), 60);
+    } catch (e) {
+      // 폴링 실패는 조용히 무시 (다음 틱에 재시도).
+    }
+  }, [match.id, token]);
+
+  // 초기 로드 + 폴링
+  useEffect(() => {
+    fetchMessages({ initial: true });
+    const id = setInterval(() => fetchMessages(), POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [fetchMessages]);
+
+  const handleSend = async () => {
+    const content = message.trim();
+    if (content === '' || sending) return;
+    setSending(true);
     setMessage('');
-    setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
+    try {
+      const res = await apiFetch(`/matches/${match.id}/messages`, {
+        method: 'POST',
+        token,
+        json: { content },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        notify('전송 실패', data.detail || '메시지 전송에 실패했습니다.');
+        setMessage(content); // 입력값 복원
+        return;
+      }
+      const created = await res.json();
+      setMessages(prev => [...prev, created]);
+      lastIdRef.current = created.id;
+      setTimeout(() => flatListRef.current?.scrollToEnd(), 60);
+    } catch (e) {
+      notify('오류', '서버와 연결할 수 없습니다.');
+      setMessage(content);
+    } finally {
+      setSending(false);
+    }
   };
 
   const renderMessage = ({ item }) => {
-    if (item.type === 'system') {
-      return (
-        <View style={styles.systemMessageContainer}>
-          <Text style={styles.systemMessageText}>{item.text}</Text>
-        </View>
-      );
-    }
-
-    const isMe = item.type === 'me';
+    const isMe = user && item.sender_nickname === user.nickname;
     return (
       <View style={[styles.messageWrapper, isMe ? styles.myMessageWrapper : styles.otherMessageWrapper]}>
-        {!isMe && <View style={styles.avatarSmall}><Text style={styles.avatarText}>{item.sender[0]}</Text></View>}
+        {!isMe && <View style={styles.avatarSmall}><Text style={styles.avatarText}>{item.sender_nickname[0]}</Text></View>}
         <View style={styles.messageContent}>
-          {!isMe && <Text style={styles.senderName}>{item.sender}</Text>}
+          {!isMe && <Text style={styles.senderName}>{item.sender_nickname}</Text>}
           <View style={[styles.messageBubble, isMe ? styles.myBubble : styles.otherBubble]}>
             <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.otherMessageText]}>
-              {item.text}
+              {item.content}
             </Text>
           </View>
-          <Text style={styles.messageTime}>{item.time}</Text>
+          <Text style={styles.messageTime}>{formatTime(item.created_at)}</Text>
         </View>
       </View>
     );
@@ -76,9 +119,14 @@ export default function ChatRoomScreen({ route, navigation }) {
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={item => item.id}
+        keyExtractor={item => String(item.id)}
         contentContainerStyle={styles.messageList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+        ListEmptyComponent={
+          <View style={styles.systemMessageContainer}>
+            <Text style={styles.systemMessageText}>아직 메시지가 없습니다. 첫 인사를 남겨보세요! 👋</Text>
+          </View>
+        }
       />
 
       <KeyboardAvoidingView
@@ -96,10 +144,10 @@ export default function ChatRoomScreen({ route, navigation }) {
             onChangeText={setMessage}
             multiline
           />
-          <TouchableOpacity 
-            style={[styles.sendBtn, message.trim() === '' && styles.sendBtnDisabled]} 
+          <TouchableOpacity
+            style={[styles.sendBtn, (message.trim() === '' || sending) && styles.sendBtnDisabled]}
             onPress={handleSend}
-            disabled={message.trim() === ''}
+            disabled={message.trim() === '' || sending}
           >
             <Ionicons name="send" size={20} color="#FFFFFF" />
           </TouchableOpacity>
