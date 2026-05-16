@@ -3,7 +3,7 @@ import { AuthContext } from './AuthContext';
 
 export const MatchContext = createContext();
 
-import { API_URL } from '../config';
+import { apiFetch } from '../utils/api';
 
 export const MatchProvider = ({ children }) => {
   const [matches, setMatches] = useState([]);
@@ -14,7 +14,7 @@ export const MatchProvider = ({ children }) => {
   const fetchMatches = async () => {
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/matches`);
+      const response = await apiFetch('/matches');
       if (!response.ok) throw new Error(`서버 응답 오류 (${response.status})`);
       const data = await response.json();
       setMatches(data.matches || []);
@@ -32,7 +32,7 @@ export const MatchProvider = ({ children }) => {
 
   const fetchMatchById = async (matchId) => {
     try {
-      const response = await fetch(`${API_URL}/matches/${matchId}`);
+      const response = await apiFetch(`/matches/${matchId}`);
       if (response.ok) {
         return await response.json();
       }
@@ -48,13 +48,10 @@ export const MatchProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/matches/${matchId}/join`, {
+      const response = await apiFetch(`/matches/${matchId}/join`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ role }),
+        token,
+        json: { role },
       });
 
       if (response.ok) {
@@ -76,11 +73,9 @@ export const MatchProvider = ({ children }) => {
     if (!token) return { success: false, message: '로그인이 필요합니다.' };
 
     try {
-      const response = await fetch(`${API_URL}/matches/${matchId}/leave`, {
+      const response = await apiFetch(`/matches/${matchId}/leave`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        token,
       });
 
       if (response.ok) {

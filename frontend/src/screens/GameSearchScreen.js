@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 
-import { API_URL } from '../config';
+import { apiFetch } from '../utils/api';
 
 export default function GameSearchScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,7 +17,7 @@ export default function GameSearchScreen({ navigation }) {
 
   const fetchGames = async () => {
     try {
-      const response = await fetch(`${API_URL}/games`);
+      const response = await apiFetch('/games');
       const data = await response.json();
       setGames(data.games);
     } catch (error) {

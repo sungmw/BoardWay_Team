@@ -14,6 +14,7 @@ import PointHistoryScreen from '../screens/PointHistoryScreen';
 import ChatListScreen from '../screens/ChatListScreen';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
 import MatchReviewScreen from '../screens/MatchReviewScreen';
+import CreateMatchScreen from '../screens/CreateMatchScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,7 @@ export default function AppNavigator() {
       <Stack.Screen name="ChatList" component={ChatListScreen} />
       <Stack.Screen name="ChatRoom" component={ChatRoomScreen} options={{ headerShown: false }} />
       <Stack.Screen name="MatchReview" component={MatchReviewScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CreateMatch" component={CreateMatchScreen} options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen 
         name="MatchConfirmation" 
         component={MatchConfirmationScreen} 

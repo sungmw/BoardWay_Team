@@ -305,11 +305,37 @@ export default function DiscoveryScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* 매치 생성 FAB — 로그인 사용자만 노출 */}
+      {user && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate('CreateMatch')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 88, // bottomTabBar 위
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 6,
+  },
   headerContainer: {
     backgroundColor: colors.surface,
     borderBottomWidth: 1,

@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const AuthContext = createContext();
 
-import { API_URL } from '../config';
 import { notify } from '../utils/dialog';
+import { apiFetch } from '../utils/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -32,11 +32,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserInfo = async (authToken) => {
     try {
-      const response = await fetch(`${API_URL}/me`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
+      const response = await apiFetch('/me', { token: authToken });
       const data = await response.json();
       if (response.ok) {
         setUser(data);
@@ -56,10 +52,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await apiFetch('/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        json: { email, password },
       });
 
       const data = await response.json();
@@ -90,10 +85,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/signup`, {
+      const response = await apiFetch('/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, nickname, mannerScore: 5 }),
+        json: { email, password, nickname, mannerScore: 5 },
       });
 
       const data = await response.json();
@@ -135,9 +129,7 @@ export const AuthProvider = ({ children }) => {
   const loadUserPointHistory = async () => {
     if (!token) return;
     try {
-      const response = await fetch(`${API_URL}/me/points/history`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const response = await apiFetch('/me/points/history', { token });
       if (!response.ok) {
         console.error('포인트 히스토리 조회 실패', response.status);
         return;
@@ -152,9 +144,7 @@ export const AuthProvider = ({ children }) => {
   const loadUserReviewData = async () => {
     if (!token) return;
     try {
-      const response = await fetch(`${API_URL}/me/reviewed-matches`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const response = await apiFetch('/me/reviewed-matches', { token });
       if (!response.ok) {
         console.error('리뷰 완료 매치 조회 실패', response.status);
         return;
@@ -179,13 +169,10 @@ export const AuthProvider = ({ children }) => {
     if (!user || !token) return false;
 
     try {
-      const response = await fetch(`${API_URL}/me/points/adjust`, {
+      const response = await apiFetch('/me/points/adjust', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ delta: amount, description }),
+        token,
+        json: { delta: amount, description },
       });
       if (!response.ok) {
         console.error('포인트 적립 실패', response.status);
@@ -206,13 +193,10 @@ export const AuthProvider = ({ children }) => {
     if (points < amount) return { success: false, message: '포인트가 부족합니다.' };
 
     try {
-      const response = await fetch(`${API_URL}/me/points/adjust`, {
+      const response = await apiFetch('/me/points/adjust', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ delta: -amount, description }),
+        token,
+        json: { delta: -amount, description },
       });
       if (!response.ok) {
         return { success: false, message: '서버 오류가 발생했습니다.' };
@@ -230,13 +214,10 @@ export const AuthProvider = ({ children }) => {
   const submitMatchReviews = async (matchId, reviews, comment = '') => {
     if (!user || !token) return { success: false, message: '로그인이 필요합니다.' };
     try {
-      const response = await fetch(`${API_URL}/me/reviews`, {
+      const response = await apiFetch('/me/reviews', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ match_id: matchId, comment, reviews }),
+        token,
+        json: { match_id: matchId, comment, reviews },
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
