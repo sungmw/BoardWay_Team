@@ -49,7 +49,7 @@ const YoutubeEmbed = ({ videoId, height = 200 }) => {
 
 export default function MatchDetailScreen({ route, navigation }) {
   const { matchId } = route.params;
-  const { matches, joinMatch, hostMap } = useContext(MatchContext);
+  const { matches, joinMatch } = useContext(MatchContext);
   const { user, points, usePoints } = useContext(AuthContext);
   
   const [match, setMatch] = useState(null);
@@ -87,15 +87,15 @@ export default function MatchDetailScreen({ route, navigation }) {
     }
 
     // 2. 매치 참여 처리
-    const success = await joinMatch(match.id, user, selectedRole);
+    const joinResult = await joinMatch(match.id, selectedRole);
     setIsJoining(false);
-    
-    if (success) {
+
+    if (joinResult.success) {
       setModalVisible(false);
       notify('신청 완료', '매칭 신청 및 결제가 완료되었습니다! 내 매치에서 확인하세요.');
       navigation.navigate('MyMatches');
     } else {
-      notify('오류', '매치 참여에 실패했습니다. 다시 시도해주세요.');
+      notify('오류', joinResult.message || '매치 참여에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -161,7 +161,7 @@ export default function MatchDetailScreen({ route, navigation }) {
             <View key={index} style={styles.participantBox}>
               <View style={styles.participantNameRow}>
                 <Text style={styles.participantName}>{participant.nickname}</Text>
-                {hostMap[match.id] === participant.nickname && <Text style={styles.hostBadge}>👑 방장</Text>}
+                {match.host === participant.nickname && <Text style={styles.hostBadge}>👑 방장</Text>}
                 {user && user.nickname === participant.nickname && <Text style={styles.meBadge}>(본인)</Text>}
               </View>
               {participant.mannerScore >= 5 && (
@@ -258,25 +258,25 @@ export default function MatchDetailScreen({ route, navigation }) {
                   >
                     <Text style={[styles.roleBtnText, selectedRole === 'participant' && styles.roleBtnTextActive]}>일반 참여</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[
-                      styles.roleBtn, 
+                      styles.roleBtn,
                       selectedRole === 'host' && styles.roleBtnActive,
-                      hostMap[match.id] && styles.roleBtnDisabled
+                      match.host && styles.roleBtnDisabled
                     ]}
                     onPress={() => {
-                      if (hostMap[match.id]) {
+                      if (match.host) {
                         notify('알림', '이미 다른 방장이 신청된 매치입니다.');
                       } else {
                         setSelectedRole('host');
                       }
                     }}
-                    disabled={!!hostMap[match.id]}
+                    disabled={!!match.host}
                   >
                     <Text style={[styles.roleBtnText, selectedRole === 'host' && styles.roleBtnTextActive]}>방장 참여 (+리워드)</Text>
                   </TouchableOpacity>
                 </View>
-                {!!hostMap[match.id] && <Text style={styles.hostStatusText}>방장: {hostMap[match.id]}님 선점 완료</Text>}
+                {!!match.host && <Text style={styles.hostStatusText}>방장: {match.host}님 선점 완료</Text>}
               </View>
 
               {selectedRole === 'host' && (

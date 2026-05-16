@@ -87,6 +87,7 @@ def format_match(m):
                 "address": m.address
             },
             "maxPlayers": m.maxPlayers,
+            "host": m.host_nickname,
             "participants": [{"nickname": p.nickname, "mannerScore": p.mannerScore, "isMe": False} for p in m.participants]
         }
     except Exception as e:
@@ -134,16 +135,23 @@ def delete_match(match_id: str, db: Session = Depends(get_db)):
     return {"message": "삭제 완료"}
 
 @app.post("/matches/{match_id}/join")
-def join_match(match_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    result = crud.join_match(db, match_id, current_user.nickname)
+def join_match(
+    match_id: str,
+    payload: schemas.JoinMatchRequest = schemas.JoinMatchRequest(),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    result = crud.join_match(db, match_id, current_user.nickname, payload.role)
     if result == "ALREADY_JOINED":
         raise HTTPException(status_code=400, detail="이미 참여가 완료된 매치입니다.")
     elif result == "FULL":
         raise HTTPException(status_code=400, detail="매치가 이미 가득 찼습니다.")
+    elif result == "HOST_TAKEN":
+        raise HTTPException(status_code=400, detail="이미 방장이 정해진 매치입니다.")
     elif result is None:
         raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
-        
-    return {"message": "참여 완료"}
+
+    return {"message": "참여 완료", "host": result.host_nickname}
 
 @app.delete("/matches/{match_id}/leave")
 def leave_match(match_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

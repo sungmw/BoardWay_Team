@@ -32,6 +32,10 @@ class MatchResponse(MatchBase):
     class Config:
         from_attributes = True
 
+class JoinMatchRequest(BaseModel):
+    role: str = "participant"  # "participant" | "host"
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str

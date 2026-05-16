@@ -4,16 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 import { AuthContext } from '../context/AuthContext';
-import { MatchContext } from '../context/MatchContext';
 import { notify } from '../utils/dialog';
 
 export default function MatchReviewScreen({ route, navigation }) {
   const { match } = route.params;
   const { user, rechargePoints, submitMatchReviews } = useContext(AuthContext);
-  const { hostMap } = useContext(MatchContext);
-  
+
   const participants = match.participants.filter(p => p.nickname !== user.nickname);
-  const hostNickname = hostMap[match.id];
+  const hostNickname = match.host;
   const isUserHost = hostNickname === user.nickname;
 
   const [ratings, setRatings] = useState({});

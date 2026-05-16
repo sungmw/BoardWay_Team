@@ -42,15 +42,9 @@ export const MatchProvider = ({ children }) => {
     return matches.find(m => m.id === matchId) || null;
   };
 
-  const [hostMap, setHostMap] = useState({}); // { matchId: hostNickname }
-
-  const joinMatch = async (matchId, nickname, mannerScore, role = 'participant') => {
+  const joinMatch = async (matchId, role = 'participant') => {
     if (!token) {
       return { success: false, message: '로그인이 필요합니다.' };
-    }
-
-    if (role === 'host' && hostMap[matchId]) {
-      return { success: false, message: '이미 방장이 정해진 매치입니다.' };
     }
 
     try {
@@ -60,12 +54,10 @@ export const MatchProvider = ({ children }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        body: JSON.stringify({ role }),
       });
 
       if (response.ok) {
-        if (role === 'host') {
-          setHostMap(prev => ({ ...prev, [matchId]: nickname }));
-        }
         await fetchMatches();
         return { success: true };
       } else if (response.status === 401) {
@@ -107,7 +99,7 @@ export const MatchProvider = ({ children }) => {
   };
 
   return (
-    <MatchContext.Provider value={{ matches, joinMatch, leaveMatch, loading, error, fetchMatches, fetchMatchById, hostMap }}>
+    <MatchContext.Provider value={{ matches, joinMatch, leaveMatch, loading, error, fetchMatches, fetchMatchById }}>
       {children}
     </MatchContext.Provider>
   );

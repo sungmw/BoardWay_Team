@@ -85,8 +85,9 @@ class Match(Base):
     venue = Column(String)
     branch = Column(String)
     address = Column(String)
-    
+
     maxPlayers = Column(Integer)
+    host_nickname = Column(String, nullable=True)  # 매치당 호스트 한 명. 없으면 NULL.
 
     participants = relationship("MatchParticipant", back_populates="match", cascade="all, delete-orphan")
 

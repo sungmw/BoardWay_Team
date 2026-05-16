@@ -19,7 +19,7 @@ LocaleConfig.locales['kr'] = {
 LocaleConfig.defaultLocale = 'kr';
 
 export default function MyMatchesScreen({ navigation }) {
-  const { matches, hostMap } = useContext(MatchContext);
+  const { matches } = useContext(MatchContext);
   const { user, reviewedMatches, settledMatches, settleMatchReward } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -72,7 +72,7 @@ export default function MyMatchesScreen({ navigation }) {
   }, [myMatches, selectedDate]);
 
   const handleSettle = async (match) => {
-    const isHost = hostMap[match.id] === user.nickname;
+    const isHost = match.host === user.nickname;
     const result = await settleMatchReward(match.id, isHost, match.games.join(', '));
     if (result.success) {
       notify('정산 완료', result.message);

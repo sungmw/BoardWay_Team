@@ -26,7 +26,7 @@ export default function DiscoveryScreen({ navigation }) {
   const [activeTime, setActiveTime] = useState('전체');
   const [activeModal, setActiveModal] = useState(null);
   
-  const { matches, hostMap } = useContext(MatchContext);
+  const { matches } = useContext(MatchContext);
   const { user, logout } = useContext(AuthContext);
 
   // 날짜 리스트 생성 (오늘부터 14일간)
@@ -132,9 +132,9 @@ export default function DiscoveryScreen({ navigation }) {
           <Text style={[styles.gameName, isFull && styles.textFull]} numberOfLines={2}>
             {item.games.join(' ➔ ')}
           </Text>
-          {hostMap[item.id] && (
+          {item.host && (
             <View style={styles.hostBadgeCard}>
-              <Text style={styles.hostBadgeCardText}>👑 {hostMap[item.id]}</Text>
+              <Text style={styles.hostBadgeCardText}>👑 {item.host}</Text>
             </View>
           )}
           {isMyMatch && (

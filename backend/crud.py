@@ -53,19 +53,23 @@ def create_match(db: Session, match: schemas.MatchCreate):
     db.refresh(db_match)
     return db_match
 
-def join_match(db: Session, match_id: str, participant_nickname: str):
+def join_match(db: Session, match_id: str, participant_nickname: str, role: str = "participant"):
     db_match = get_match_by_match_id(db, match_id)
     if not db_match:
         return None
-    
+
     # 중복 참여 검사
     for p in db_match.participants:
         if p.nickname == participant_nickname:
             return "ALREADY_JOINED"
-            
+
     if len(db_match.participants) >= db_match.maxPlayers:
         return "FULL"
-        
+
+    # 호스트 신청은 빈자리(host_nickname IS NULL)일 때만
+    if role == "host" and db_match.host_nickname:
+        return "HOST_TAKEN"
+
     user = get_user_by_nickname(db, participant_nickname)
     db_participant = models.MatchParticipant(
         match_id=db_match.id,
@@ -73,6 +77,10 @@ def join_match(db: Session, match_id: str, participant_nickname: str):
         mannerScore=user.mannerScore if user else 5
     )
     db.add(db_participant)
+
+    if role == "host":
+        db_match.host_nickname = participant_nickname
+
     db.commit()
     db.refresh(db_match)
     return db_match
