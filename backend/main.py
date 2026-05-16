@@ -216,10 +216,57 @@ def adjust_my_points(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    updated = crud.add_user_points(db, current_user.nickname, payload.delta)
+    updated = crud.add_user_points(
+        db, current_user.nickname, payload.delta, payload.description
+    )
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
     return updated
+
+
+@app.get(
+    "/me/points/history",
+    response_model=List[schemas.PointHistoryItem],
+    response_model_by_alias=True,
+)
+def read_my_point_history(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return crud.get_user_point_history(db, current_user.id)
+
+
+@app.post("/me/reviews", response_model=List[schemas.ReviewItem])
+def submit_match_reviews(
+    payload: schemas.ReviewCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    result = crud.create_match_reviews(
+        db, current_user.id, payload.match_id, payload.reviews, payload.comment
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
+    if result == "ALREADY_REVIEWED":
+        raise HTTPException(status_code=400, detail="이미 리뷰를 남긴 매치입니다.")
+    return [
+        schemas.ReviewItem(
+            id=r.id,
+            match_id=payload.match_id,
+            reviewee_nickname=r.reviewee_nickname,
+            rating=r.rating,
+            comment=r.comment,
+        )
+        for r in result
+    ]
+
+
+@app.get("/me/reviewed-matches", response_model=List[str])
+def my_reviewed_match_ids(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return crud.get_reviewer_match_business_ids(db, current_user.id)
 
 if __name__ == "__main__":
     import uvicorn
