@@ -41,9 +41,14 @@ class UserResponse(BaseModel):
     email: EmailStr
     nickname: str
     mannerScore: int
+    points: int = 0
 
     class Config:
         from_attributes = True
+
+
+class PointsAdjustRequest(BaseModel):
+    delta: int
 
 class LoginRequest(BaseModel):
     email: EmailStr

@@ -10,6 +10,7 @@ class User(Base):
     password = Column(String)
     nickname = Column(String, unique=True)
     mannerScore = Column(Integer, default=5)
+    points = Column(Integer, default=0)
 
 class Game(Base):
     __tablename__ = "games"

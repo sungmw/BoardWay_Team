@@ -199,15 +199,27 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
         "access_token": access_token, 
         "token_type": "bearer",
         "user": {
-            "email": user.email, 
-            "nickname": user.nickname, 
-            "mannerScore": user.mannerScore
+            "email": user.email,
+            "nickname": user.nickname,
+            "mannerScore": user.mannerScore,
+            "points": user.points,
         }
     }
 
 @app.get("/me", response_model=schemas.UserResponse)
 def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+@app.post("/me/points/adjust", response_model=schemas.UserResponse)
+def adjust_my_points(
+    payload: schemas.PointsAdjustRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    updated = crud.add_user_points(db, current_user.nickname, payload.delta)
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated
 
 if __name__ == "__main__":
     import uvicorn

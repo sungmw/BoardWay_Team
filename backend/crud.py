@@ -100,6 +100,16 @@ def get_user_matches(db: Session, nickname: str):
         models.MatchParticipant.nickname == nickname
     ).all()
     participating_match_ids = [m[0] for m in participating_match_ids]
-    
+
     participating_matches = db.query(models.Match).filter(models.Match.id.in_(participating_match_ids)).all()
     return participating_matches
+
+def add_user_points(db: Session, nickname: str, delta: int):
+    """포인트 가감. delta 양수 = 적립, 음수 = 차감."""
+    user = get_user_by_nickname(db, nickname)
+    if not user:
+        return None
+    user.points = (user.points or 0) + delta
+    db.commit()
+    db.refresh(user)
+    return user
