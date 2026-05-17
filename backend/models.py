@@ -105,6 +105,19 @@ class Message(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    type = Column(String, nullable=False)  # 'match_cancelled' 등
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=False, default="")
+    match_business_id = Column(String, nullable=True)  # 'm1' 같은 비즈니스 ID. 탭 시 이동용.
+    read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class MatchParticipant(Base):
     __tablename__ = "match_participants"
 

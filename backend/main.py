@@ -315,6 +315,35 @@ def cancel_match_endpoint(
     )
 
 
+@app.get("/me/notifications", response_model=List[schemas.NotificationItem])
+def list_my_notifications(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return crud.list_user_notifications(db, current_user.id)
+
+
+@app.post("/me/notifications/{notif_id}/read", response_model=schemas.NotificationItem)
+def mark_notification_read_endpoint(
+    notif_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    result = crud.mark_notification_read(db, current_user.id, notif_id)
+    if result == "NOT_FOUND":
+        raise HTTPException(status_code=404, detail="알림을 찾을 수 없습니다.")
+    return result
+
+
+@app.post("/me/notifications/read-all")
+def mark_all_notifications_read_endpoint(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    count = crud.mark_all_notifications_read(db, current_user.id)
+    return {"updated": count}
+
+
 @app.get("/matches/{match_id}/messages", response_model=List[schemas.MessageItem])
 def list_match_messages_endpoint(
     match_id: str,

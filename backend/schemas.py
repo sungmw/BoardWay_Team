@@ -43,6 +43,19 @@ class CancelResponse(BaseModel):
     message: str
 
 
+class NotificationItem(BaseModel):
+    id: int
+    type: str
+    title: str
+    body: str
+    match_business_id: Optional[str] = None
+    read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class MessageCreate(BaseModel):
     content: str
 

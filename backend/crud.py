@@ -245,13 +245,20 @@ def cancel_match(db: Session, match_business_id: str):
         return "ALREADY_CANCELLED"
 
     refunded = 0
+    games_label = ", ".join(match.games or [])
     for p in list(match.participants):
         user = get_user_by_nickname(db, p.nickname)
         if user is None:
             continue
         add_user_points(
             db, p.nickname, MATCH_PARTICIPATION_COST,
-            f"[{', '.join(match.games or [])}] 매치 취소 환불",
+            f"[{games_label}] 매치 취소 환불",
+        )
+        create_notification(
+            db, user.id, "match_cancelled",
+            "매치가 취소되었습니다",
+            f"[{games_label}] 매치가 운영진에 의해 취소되어 {MATCH_PARTICIPATION_COST:,}P 가 환불되었습니다.",
+            match_business_id=match.match_id,
         )
         refunded += 1
 
@@ -322,6 +329,52 @@ def create_match_message(db: Session, match_business_id: str, sender, content: s
     db.commit()
     db.refresh(msg)
     return msg
+
+
+def create_notification(db: Session, user_id: int, type_: str, title: str, body: str = "", match_business_id: str = None):
+    notif = models.Notification(
+        user_id=user_id,
+        type=type_,
+        title=title,
+        body=body,
+        match_business_id=match_business_id,
+    )
+    db.add(notif)
+    db.commit()
+    db.refresh(notif)
+    return notif
+
+
+def list_user_notifications(db: Session, user_id: int):
+    return (
+        db.query(models.Notification)
+        .filter(models.Notification.user_id == user_id)
+        .order_by(models.Notification.created_at.desc(), models.Notification.id.desc())
+        .limit(100)
+        .all()
+    )
+
+
+def mark_notification_read(db: Session, user_id: int, notif_id: int):
+    notif = db.query(models.Notification).filter(
+        models.Notification.id == notif_id,
+        models.Notification.user_id == user_id,
+    ).first()
+    if not notif:
+        return "NOT_FOUND"
+    notif.read = True
+    db.commit()
+    return notif
+
+
+def mark_all_notifications_read(db: Session, user_id: int):
+    count = (
+        db.query(models.Notification)
+        .filter(models.Notification.user_id == user_id, models.Notification.read == False)  # noqa: E712
+        .update({"read": True}, synchronize_session=False)
+    )
+    db.commit()
+    return count
 
 
 def get_user_point_history(db: Session, user_id: int):

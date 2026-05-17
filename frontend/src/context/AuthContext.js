@@ -110,17 +110,26 @@ export const AuthProvider = ({ children }) => {
   const [points, setPoints] = useState(0);
   const [pointHistory, setPointHistory] = useState([]);
   const [reviewedMatches, setReviewedMatches] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     if (user) {
       setPoints(user.points || 0);
       loadUserPointHistory();
       loadUserReviewData();
+      loadNotifications();
     } else {
       setPoints(0);
       setPointHistory([]);
       setReviewedMatches([]);
+      setNotifications([]);
     }
+  }, [user, token]);
+
+  useEffect(() => {
+    if (!user || !token) return;
+    const id = setInterval(() => { loadNotifications(); }, 5000);
+    return () => clearInterval(id);
   }, [user, token]);
 
   const loadUserPointHistory = async () => {
@@ -151,6 +160,38 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {
       console.error('Failed to load reviewed matches', e);
     }
+  };
+
+  const loadNotifications = async () => {
+    if (!token) return;
+    try {
+      const response = await apiFetch('/me/notifications', { token });
+      if (!response.ok) return;
+      const data = await response.json();
+      setNotifications(data);
+    } catch (e) {
+      // 폴링이라 조용히 무시
+    }
+  };
+
+  const markNotificationRead = async (notifId) => {
+    if (!token) return;
+    try {
+      const response = await apiFetch(`/me/notifications/${notifId}/read`, { method: 'POST', token });
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+      }
+    } catch (e) {}
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!token) return;
+    try {
+      const response = await apiFetch('/me/notifications/read-all', { method: 'POST', token });
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      }
+    } catch (e) {}
   };
 
   const rechargePoints = async (amount, description = '포인트 충전') => {
@@ -225,6 +266,7 @@ export const AuthProvider = ({ children }) => {
     setPoints(0);
     setPointHistory([]);
     setReviewedMatches([]);
+    setNotifications([]);
     await AsyncStorage.removeItem('userToken');
   };
 
@@ -238,6 +280,7 @@ export const AuthProvider = ({ children }) => {
       user, token, loading, login, signup, logout, fetchUserInfo,
       points, pointHistory, rechargePoints, usePoints,
       reviewedMatches, submitMatchReviews,
+      notifications, loadNotifications, markNotificationRead, markAllNotificationsRead,
     }}>
       {children}
     </AuthContext.Provider>

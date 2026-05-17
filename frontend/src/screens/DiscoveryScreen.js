@@ -27,7 +27,8 @@ export default function DiscoveryScreen({ navigation }) {
   const [activeModal, setActiveModal] = useState(null);
   
   const { matches } = useContext(MatchContext);
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, notifications } = useContext(AuthContext);
+  const unreadCount = (notifications || []).filter(n => !n.read).length;
 
   // 날짜 리스트 생성 (오늘부터 14일간)
   const dateList = useMemo(() => {
@@ -177,15 +178,32 @@ export default function DiscoveryScreen({ navigation }) {
               <Text style={styles.mainTitle}>보드게임을 즐기는</Text>
               <Text style={styles.mainTitleBold}>가장 빠른 길</Text>
             </View>
-            {user ? (
-              <TouchableOpacity onPress={logout} style={styles.authBtn}>
-                <Text style={styles.authBtnText}>{user.nickname}님 (로그아웃)</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.authBtn}>
-                <Text style={styles.authBtnText}>로그인 해주세요 ➔</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.headerRight}>
+              {user && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Notifications')}
+                  style={styles.bellBtn}
+                >
+                  <Ionicons name="notifications-outline" size={24} color={colors.primary} />
+                  {unreadCount > 0 && (
+                    <View style={styles.bellBadge}>
+                      <Text style={styles.bellBadgeText}>
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
+              {user ? (
+                <TouchableOpacity onPress={logout} style={styles.authBtn}>
+                  <Text style={styles.authBtnText}>{user.nickname}님 (로그아웃)</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.authBtn}>
+                  <Text style={styles.authBtnText}>로그인 해주세요 ➔</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
 
@@ -360,6 +378,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bellBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   authBtn: {
     backgroundColor: colors.background,
