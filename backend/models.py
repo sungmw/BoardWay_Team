@@ -90,7 +90,6 @@ class Match(Base):
     maxPlayers = Column(Integer)
     host_nickname = Column(String, nullable=True)
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    host_settled = Column(Boolean, default=False, nullable=False)
     cancelled = Column(Boolean, default=False, nullable=False)
 
     participants = relationship("MatchParticipant", back_populates="match", cascade="all, delete-orphan")
@@ -113,6 +112,5 @@ class MatchParticipant(Base):
     match_id = Column(Integer, ForeignKey("matches.id"))
     nickname = Column(String)
     mannerScore = Column(Integer)
-    settled = Column(Boolean, default=False, nullable=False)  # 이 참가자의 정산 완료 여부.
 
     match = relationship("Match", back_populates="participants")

@@ -9,7 +9,7 @@ export const MatchProvider = ({ children }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { token, logout } = useContext(AuthContext);
+  const { token, logout, fetchUserInfo } = useContext(AuthContext);
 
   const fetchMatches = async () => {
     setError(null);
@@ -104,8 +104,10 @@ export const MatchProvider = ({ children }) => {
       });
 
       if (response.ok) {
+        const data = await response.json().catch(() => ({}));
         await fetchMatches();
-        return { success: true };
+        if (data.refunded && fetchUserInfo) await fetchUserInfo(token);
+        return { success: true, refunded: data.refunded || 0 };
       } else if (response.status === 401) {
         await logout();
         return { success: false, message: '세션이 만료되었습니다. 다시 로그인해주세요.' };

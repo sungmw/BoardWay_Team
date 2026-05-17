@@ -173,7 +173,11 @@ def leave_match(match_id: str, db: Session = Depends(get_db), current_user: mode
         raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
     if result == "NOT_PARTICIPATING":
         raise HTTPException(status_code=400, detail="참여 중인 매치가 아닙니다.")
-    return {"message": "탈퇴 완료"}
+    if result == "ALREADY_STARTED":
+        raise HTTPException(status_code=400, detail="이미 시작된 매치는 취소할 수 없습니다.")
+    if result == "CANCELLED":
+        raise HTTPException(status_code=400, detail="이미 취소된 매치입니다.")
+    return {"message": "참여 취소 완료", "refunded": result["refunded"]}
 
 @app.get("/my-matches")
 def get_my_matches(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

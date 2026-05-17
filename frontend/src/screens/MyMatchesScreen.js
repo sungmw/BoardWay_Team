@@ -6,6 +6,7 @@ import { commonStyles } from '../theme/styles';
 import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { notify, confirmAction } from '../utils/dialog';
 
 // 달력 한국어 설정
 LocaleConfig.locales['kr'] = {
@@ -18,9 +19,25 @@ LocaleConfig.locales['kr'] = {
 LocaleConfig.defaultLocale = 'kr';
 
 export default function MyMatchesScreen({ navigation }) {
-  const { matches } = useContext(MatchContext);
+  const { matches, leaveMatch } = useContext(MatchContext);
   const { user, reviewedMatches } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const handleLeave = (match) => {
+    confirmAction(
+      '참여 취소',
+      `이 매치 참여를 취소하시겠습니까?\n결제하신 12,000P 가 즉시 환불됩니다.`,
+      async () => {
+        const result = await leaveMatch(match.id);
+        if (result.success) {
+          notify('환불 완료', `12,000P 가 환불되었습니다.`);
+        } else {
+          notify('오류', result.message);
+        }
+      },
+      { confirmText: '취소하기', destructive: true },
+    );
+  };
 
   // 내 매치만 필터링
   const myMatches = useMemo(() => {
@@ -80,6 +97,7 @@ export default function MyMatchesScreen({ navigation }) {
 
     const isPastMatch = now > matchEnd;
     const isWithinWindow = now >= matchEnd && now <= reviewDeadline;
+    const isBeforeStart = now < matchStart;
 
     return (
       <View style={styles.matchItemContainer}>
@@ -106,6 +124,14 @@ export default function MyMatchesScreen({ navigation }) {
             <Ionicons name="close-circle-outline" size={16} color={colors.error} />
             <Text style={styles.cancelledBtnText}>취소된 매치 (환불 완료)</Text>
           </View>
+        ) : isBeforeStart ? (
+          <TouchableOpacity
+            style={[styles.reviewBtn, styles.leaveBtn]}
+            onPress={() => handleLeave(item)}
+          >
+            <Ionicons name="close-outline" size={16} color={colors.error} />
+            <Text style={styles.leaveBtnText}>참여 취소 (12,000P 환불)</Text>
+          </TouchableOpacity>
         ) : isPastMatch && (
           isReviewed ? (
             <View style={[styles.reviewBtn, styles.reviewedBtn]}>
@@ -303,6 +329,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFEBEB',
   },
   cancelledBtnText: {
+    color: colors.error,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  leaveBtn: {
+    backgroundColor: '#FFF5F5',
+    borderTopWidth: 1,
+    borderTopColor: '#FFD7D7',
+  },
+  leaveBtnText: {
     color: colors.error,
     fontWeight: 'bold',
     fontSize: 14,

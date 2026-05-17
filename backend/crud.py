@@ -85,21 +85,44 @@ def join_match(db: Session, match_id: str, participant_nickname: str, role: str 
     return db_match
 
 def leave_match(db: Session, match_id: str, nickname: str):
+    """참여 취소 + 환불. 시작 전 매치만 가능.
+
+    Returns:
+        - "MATCH_NOT_FOUND" / "NOT_PARTICIPATING" / "ALREADY_STARTED" / "CANCELLED"
+        - dict { refunded: int }: 성공
+    """
+    from datetime import datetime
+
     db_match = get_match_by_match_id(db, match_id)
     if not db_match:
         return "MATCH_NOT_FOUND"
-    
+
     participant = db.query(models.MatchParticipant).filter(
         models.MatchParticipant.match_id == db_match.id,
         models.MatchParticipant.nickname == nickname
     ).first()
-    
     if not participant:
         return "NOT_PARTICIPATING"
-    
+
+    if db_match.cancelled:
+        return "CANCELLED"
+
+    try:
+        match_start = datetime.fromisoformat(f"{db_match.date}T{db_match.startTime}:00")
+    except ValueError:
+        match_start = None
+    if match_start and datetime.now() >= match_start:
+        return "ALREADY_STARTED"
+
     db.delete(participant)
-    db.commit()
-    return "SUCCESS"
+    db.flush()
+
+    add_user_points(
+        db, nickname, MATCH_PARTICIPATION_COST,
+        f"[{', '.join(db_match.games or [])}] 참여 취소 환불",
+    )
+
+    return {"refunded": MATCH_PARTICIPATION_COST}
 
 def get_user_matches(db: Session, nickname: str):
     # Matches user is participating in
