@@ -42,7 +42,7 @@ export const MatchProvider = ({ children }) => {
     return matches.find(m => m.id === matchId) || null;
   };
 
-  const joinMatch = async (matchId, role = 'participant') => {
+  const joinMatch = async (matchId) => {
     if (!token) {
       return { success: false, message: '로그인이 필요합니다.' };
     }
@@ -51,7 +51,7 @@ export const MatchProvider = ({ children }) => {
       const response = await apiFetch(`/matches/${matchId}/join`, {
         method: 'POST',
         token,
-        json: { role },
+        json: {},
       });
 
       if (response.ok) {
@@ -63,6 +63,31 @@ export const MatchProvider = ({ children }) => {
       } else {
         const errorData = await response.json();
         return { success: false, message: errorData.detail || '참여에 실패했습니다.' };
+      }
+    } catch (e) {
+      return { success: false, message: '서버와 통신할 수 없습니다.' };
+    }
+  };
+
+  const cancelMatch = async (matchId) => {
+    if (!token) return { success: false, message: '로그인이 필요합니다.' };
+
+    try {
+      const response = await apiFetch(`/matches/${matchId}/cancel`, {
+        method: 'POST',
+        token,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await fetchMatches();
+        return { success: true, message: data.message };
+      } else if (response.status === 401) {
+        await logout();
+        return { success: false, message: '세션이 만료되었습니다.' };
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, message: errorData.detail || '매치 취소에 실패했습니다.' };
       }
     } catch (e) {
       return { success: false, message: '서버와 통신할 수 없습니다.' };
@@ -94,7 +119,7 @@ export const MatchProvider = ({ children }) => {
   };
 
   return (
-    <MatchContext.Provider value={{ matches, joinMatch, leaveMatch, loading, error, fetchMatches, fetchMatchById }}>
+    <MatchContext.Provider value={{ matches, joinMatch, leaveMatch, cancelMatch, loading, error, fetchMatches, fetchMatchById }}>
       {children}
     </MatchContext.Provider>
   );

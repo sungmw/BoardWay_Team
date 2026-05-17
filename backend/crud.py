@@ -204,86 +204,41 @@ def create_match_reviews(db: Session, reviewer_id: int, match_business_id: str, 
     return created
 
 
-HOST_REWARD_AMOUNT = 3000
-HOST_REWARD_MIN_AVG = 4.0
-MATCH_DURATION_MINUTES = 120
+MATCH_PARTICIPATION_COST = 12000
 
 
-def settle_match_participant(db: Session, match_business_id: str, user):
-    """매치 종료 후 본인 정산 트리거.
+def cancel_match(db: Session, match_business_id: str):
+    """매치 취소 + 참여자 전원 환불 (한 트랜잭션).
 
-    Returns dict: { code, is_host, reward_amount, message } 또는
-            str: 에러 코드 ("NOT_FOUND", "NOT_PARTICIPANT", "NOT_ENDED", "ALREADY_SETTLED")
+    Returns:
+        - "NOT_FOUND": 매치 없음
+        - "ALREADY_CANCELLED": 이미 취소된 매치
+        - dict { refunded_count, refund_amount }: 성공
     """
-    from datetime import datetime, timedelta
-
     match = get_match_by_match_id(db, match_business_id)
     if not match:
         return "NOT_FOUND"
+    if match.cancelled:
+        return "ALREADY_CANCELLED"
 
-    participant = db.query(models.MatchParticipant).filter(
-        models.MatchParticipant.match_id == match.id,
-        models.MatchParticipant.nickname == user.nickname,
-    ).first()
-    if not participant:
-        return "NOT_PARTICIPANT"
-
-    # 매치 종료 시각 = date + startTime + 2시간. 종료 안 됐으면 거부.
-    try:
-        match_start = datetime.fromisoformat(f"{match.date}T{match.startTime}:00")
-    except ValueError:
-        return "NOT_FOUND"
-    match_end = match_start + timedelta(minutes=MATCH_DURATION_MINUTES)
-    if datetime.now() < match_end:
-        return "NOT_ENDED"
-
-    if participant.settled:
-        return "ALREADY_SETTLED"
-
-    is_host = (match.host_nickname == user.nickname)
-    reward_amount = 0
-
-    # 호스트 페이백 — 받은 별점 평균 ≥ 4.0 인 경우만.
-    if is_host and not match.host_settled:
-        from sqlalchemy import func
-        avg = (
-            db.query(func.avg(models.Review.rating))
-            .filter(
-                models.Review.reviewee_nickname == user.nickname,
-                models.Review.match_id == match.id,
-            )
-            .scalar()
+    refunded = 0
+    for p in list(match.participants):
+        user = get_user_by_nickname(db, p.nickname)
+        if user is None:
+            continue
+        add_user_points(
+            db, p.nickname, MATCH_PARTICIPATION_COST,
+            f"[{', '.join(match.games or [])}] 매치 취소 환불",
         )
-        if avg is not None and avg >= HOST_REWARD_MIN_AVG:
-            # 페이백 + 매너 온도 자동 갱신은 이미 일어났음 (리뷰 시점).
-            add_user_points(
-                db, user.nickname, HOST_REWARD_AMOUNT,
-                f"[{', '.join(match.games or [])}] 방장 리워드 페이백",
-            )
-            reward_amount = HOST_REWARD_AMOUNT
-        match.host_settled = True
+        refunded += 1
 
-    participant.settled = True
+    match.cancelled = True
     db.commit()
 
     return {
-        "is_host": is_host,
-        "reward_amount": reward_amount,
+        "refunded_count": refunded,
+        "refund_amount": MATCH_PARTICIPATION_COST,
     }
-
-
-def get_settled_match_business_ids(db: Session, nickname: str):
-    """이 사용자가 정산 완료한 매치들의 비즈니스 ID 리스트."""
-    rows = (
-        db.query(models.Match.match_id)
-        .join(models.MatchParticipant, models.MatchParticipant.match_id == models.Match.id)
-        .filter(
-            models.MatchParticipant.nickname == nickname,
-            models.MatchParticipant.settled == True,  # noqa: E712
-        )
-        .all()
-    )
-    return [r[0] for r in rows]
 
 
 def get_reviewer_match_business_ids(db: Session, reviewer_id: int):

@@ -36,10 +36,10 @@ class JoinMatchRequest(BaseModel):
     role: str = "participant"  # "participant" | "host"
 
 
-class SettleResponse(BaseModel):
-    settled: bool
-    is_host: bool
-    reward_amount: int = 0
+class CancelResponse(BaseModel):
+    cancelled: bool
+    refunded_count: int
+    refund_amount: int
     message: str
 
 
@@ -68,6 +68,7 @@ class UserResponse(BaseModel):
     nickname: str
     mannerScore: int
     points: int = 0
+    is_admin: bool = False
 
     class Config:
         from_attributes = True

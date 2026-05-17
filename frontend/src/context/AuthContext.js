@@ -110,20 +110,16 @@ export const AuthProvider = ({ children }) => {
   const [points, setPoints] = useState(0);
   const [pointHistory, setPointHistory] = useState([]);
   const [reviewedMatches, setReviewedMatches] = useState([]);
-  const [settledMatches, setSettledMatches] = useState([]);
 
-  // 유저가 로그인하거나 변경될 때 해당 유저의 데이터 로드
   useEffect(() => {
     if (user) {
-      setPoints(user.points || 0); // 잔액은 서버에서 받은 user.points
-      loadUserPointHistory(); // 히스토리도 서버에서
-      loadUserReviewData(); // 리뷰 완료 매치 ID 리스트도 서버에서
-      loadUserSettlementData(); // 정산 완료 매치도 서버에서
+      setPoints(user.points || 0);
+      loadUserPointHistory();
+      loadUserReviewData();
     } else {
       setPoints(0);
       setPointHistory([]);
       setReviewedMatches([]);
-      setSettledMatches([]);
     }
   }, [user, token]);
 
@@ -154,21 +150,6 @@ export const AuthProvider = ({ children }) => {
       setReviewedMatches(data); // 비즈니스 ID 리스트 (예: ["m1", "m3"])
     } catch (e) {
       console.error('Failed to load reviewed matches', e);
-    }
-  };
-
-  const loadUserSettlementData = async () => {
-    if (!token) return;
-    try {
-      const response = await apiFetch('/me/settled-matches', { token });
-      if (!response.ok) {
-        console.error('정산 완료 매치 조회 실패', response.status);
-        return;
-      }
-      const data = await response.json();
-      setSettledMatches(data); // 비즈니스 ID 리스트
-    } catch (e) {
-      console.error('Failed to load settled matches', e);
     }
   };
 
@@ -238,35 +219,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const settleMatchReward = async (matchId) => {
-    if (!user || !token) return { success: false, message: '로그인이 필요합니다.' };
-    try {
-      const response = await apiFetch(`/matches/${matchId}/settle`, { method: 'POST', token });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        return { success: false, message: data.detail || '정산에 실패했습니다.' };
-      }
-      const data = await response.json();
-      // 페이백 받았으면 잔액 갱신을 위해 user 정보 + 히스토리 재로드
-      if (data.reward_amount > 0) {
-        await fetchUserInfo(token);
-        await loadUserPointHistory();
-      }
-      await loadUserSettlementData();
-      return { success: true, message: data.message, rewardGiven: data.reward_amount > 0 };
-    } catch (e) {
-      console.error('Failed to settle', e);
-      return { success: false, message: '서버와 연결할 수 없습니다.' };
-    }
-  };
-
   const logout = async () => {
     setUser(null);
     setToken(null);
     setPoints(0);
     setPointHistory([]);
     setReviewedMatches([]);
-    setSettledMatches([]);
     await AsyncStorage.removeItem('userToken');
   };
 
@@ -276,11 +234,10 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, token, loading, login, signup, logout, 
-      points, pointHistory, rechargePoints, usePoints, 
+    <AuthContext.Provider value={{
+      user, token, loading, login, signup, logout, fetchUserInfo,
+      points, pointHistory, rechargePoints, usePoints,
       reviewedMatches, submitMatchReviews,
-      settledMatches, settleMatchReward
     }}>
       {children}
     </AuthContext.Provider>

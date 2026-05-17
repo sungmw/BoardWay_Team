@@ -88,6 +88,7 @@ def format_match(m):
             },
             "maxPlayers": m.maxPlayers,
             "host": m.host_nickname,
+            "cancelled": m.cancelled,
             "participants": [{"nickname": p.nickname, "mannerScore": p.mannerScore, "isMe": False} for p in m.participants]
         }
     except Exception as e:
@@ -124,6 +125,8 @@ def create_match(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="매치 생성은 운영진만 가능합니다.")
     new_match = crud.create_match(db, match, creator_user_id=current_user.id)
     return format_match(new_match)
 
@@ -221,6 +224,7 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
             "nickname": user.nickname,
             "mannerScore": user.mannerScore,
             "points": user.points,
+            "is_admin": user.is_admin,
         }
     }
 
@@ -286,42 +290,25 @@ def my_reviewed_match_ids(
     return crud.get_reviewer_match_business_ids(db, current_user.id)
 
 
-@app.post("/matches/{match_id}/settle", response_model=schemas.SettleResponse)
-def settle_match(
+@app.post("/matches/{match_id}/cancel", response_model=schemas.CancelResponse)
+def cancel_match_endpoint(
     match_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    result = crud.settle_match_participant(db, match_id, current_user)
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="매치 취소는 운영진만 가능합니다.")
+    result = crud.cancel_match(db, match_id)
     if result == "NOT_FOUND":
         raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
-    if result == "NOT_PARTICIPANT":
-        raise HTTPException(status_code=403, detail="이 매치에 참여하지 않았습니다.")
-    if result == "NOT_ENDED":
-        raise HTTPException(status_code=400, detail="매치가 아직 종료되지 않았습니다.")
-    if result == "ALREADY_SETTLED":
-        raise HTTPException(status_code=400, detail="이미 정산된 매치입니다.")
-
-    is_host = result["is_host"]
-    reward = result["reward_amount"]
-    if is_host and reward > 0:
-        msg = f"참여자들의 높은 평가로 방장 리워드 {reward:,}P가 지급되었습니다! ✨"
-    elif is_host:
-        msg = "방장 평균 별점이 기준에 미달하여 페이백이 지급되지 않았습니다."
-    else:
-        msg = "매너 점수가 정산되었습니다."
-
-    return schemas.SettleResponse(
-        settled=True, is_host=is_host, reward_amount=reward, message=msg
+    if result == "ALREADY_CANCELLED":
+        raise HTTPException(status_code=400, detail="이미 취소된 매치입니다.")
+    return schemas.CancelResponse(
+        cancelled=True,
+        refunded_count=result["refunded_count"],
+        refund_amount=result["refund_amount"],
+        message=f"매치가 취소되었습니다. 참여자 {result['refunded_count']}명에게 {result['refund_amount']:,}P씩 환불 완료.",
     )
-
-
-@app.get("/me/settled-matches", response_model=List[str])
-def my_settled_match_ids(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    return crud.get_settled_match_business_ids(db, current_user.nickname)
 
 
 @app.get("/matches/{match_id}/messages", response_model=List[schemas.MessageItem])

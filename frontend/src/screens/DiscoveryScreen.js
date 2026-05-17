@@ -58,10 +58,11 @@ export default function DiscoveryScreen({ navigation }) {
   };
 
   const filteredMatches = matches.filter(match => {
+    if (match.cancelled) return false;
     const passDate = match.date === activeDate;
     const passGenre = activeGenre === '전체' || match.tags.includes(activeGenre);
-    const passLocation = activeLocation === '전체' || 
-                         match.location.address.includes(activeLocation) || 
+    const passLocation = activeLocation === '전체' ||
+                         match.location.address.includes(activeLocation) ||
                          match.location.branch.includes(activeLocation);
     const passTime = matchTimeFilter(match.startTime, activeTime);
     return passDate && passGenre && passLocation && passTime;
@@ -305,8 +306,7 @@ export default function DiscoveryScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* 매치 생성 FAB — 로그인 사용자만 노출 */}
-      {user && (
+      {user?.is_admin && (
         <TouchableOpacity
           style={styles.fab}
           onPress={() => navigation.navigate('CreateMatch')}
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 88, // bottomTabBar 위
+    bottom: 88,
     width: 56,
     height: 56,
     borderRadius: 28,

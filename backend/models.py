@@ -12,6 +12,7 @@ class User(Base):
     nickname = Column(String, unique=True)
     mannerScore = Column(Integer, default=5)
     points = Column(Integer, default=0, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
 
     point_history = relationship(
         "PointHistory",
@@ -87,9 +88,10 @@ class Match(Base):
     address = Column(String)
 
     maxPlayers = Column(Integer)
-    host_nickname = Column(String, nullable=True)  # 매치당 호스트 한 명. 없으면 NULL.
-    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # 시드 매치는 NULL.
-    host_settled = Column(Boolean, default=False, nullable=False)  # 호스트 페이백 완료 여부.
+    host_nickname = Column(String, nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    host_settled = Column(Boolean, default=False, nullable=False)
+    cancelled = Column(Boolean, default=False, nullable=False)
 
     participants = relationship("MatchParticipant", back_populates="match", cascade="all, delete-orphan")
 

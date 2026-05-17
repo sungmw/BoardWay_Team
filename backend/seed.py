@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 import models
+from auth_utils import get_password_hash
 from database import SessionLocal
 
 # 테이블은 Alembic 으로 관리합니다. 시드 전 `alembic upgrade head` 가 선행되어 있어야 합니다.
@@ -91,6 +92,20 @@ def seed_db(force_reset=False):
         db.query(models.User).delete()
         db.commit()
         print("초기화 완료.")
+
+    # 운영진 계정은 항상 보장 (게임 시드 스킵해도 별도로 체크).
+    admin_email = "admin@boardway.io"
+    admin = db.query(models.User).filter(models.User.email == admin_email).first()
+    if not admin:
+        db.add(models.User(
+            email=admin_email,
+            password=get_password_hash("admin123"),
+            nickname="보드웨이운영",
+            mannerScore=6,
+            is_admin=True,
+        ))
+        db.commit()
+        print(f"운영진 계정 생성: {admin_email} / admin123")
 
     if db.query(models.Game).first():
         print("데이터베이스에 이미 데이터가 존재합니다. 시딩을 건너뜁니다.")

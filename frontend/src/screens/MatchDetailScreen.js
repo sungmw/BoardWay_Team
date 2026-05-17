@@ -49,14 +49,13 @@ const YoutubeEmbed = ({ videoId, height = 200 }) => {
 
 export default function MatchDetailScreen({ route, navigation }) {
   const { matchId } = route.params;
-  const { matches, joinMatch } = useContext(MatchContext);
+  const { matches, joinMatch, cancelMatch } = useContext(MatchContext);
   const { user, points, usePoints } = useContext(AuthContext);
   
   const [match, setMatch] = useState(null);
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
-  const [isJoining, setIsJoining] = useState(false); // 로딩 상태 추가
-  const [selectedRole, setSelectedRole] = useState('participant'); // 'participant' or 'host'
+  const [isJoining, setIsJoining] = useState(false);
 
   useEffect(() => {
     const foundMatch = matches.find(m => m.id === matchId);
@@ -74,20 +73,17 @@ export default function MatchDetailScreen({ route, navigation }) {
     }
 
     setIsJoining(true);
-    
-    // 1. 포인트 사용 처리
-    // 모든 참여자 12,000P 결제 (방장은 나중에 리뷰 점수에 따라 페이백)
+
     const cost = 12000;
-    const pointResult = await usePoints(cost, `[${match.games.join(', ')}] 매치 참여 결제 (${selectedRole === 'host' ? '방장' : '일반'})`);
-    
+    const pointResult = await usePoints(cost, `[${match.games.join(', ')}] 매치 참여 결제`);
+
     if (!pointResult.success) {
       notify('오류', pointResult.message);
       setIsJoining(false);
       return;
     }
 
-    // 2. 매치 참여 처리
-    const joinResult = await joinMatch(match.id, selectedRole);
+    const joinResult = await joinMatch(match.id);
     setIsJoining(false);
 
     if (joinResult.success) {
@@ -118,6 +114,25 @@ export default function MatchDetailScreen({ route, navigation }) {
   const now = new Date();
   const isStarted = now > matchStart;
   const isFull = match.participants.length >= match.maxPlayers;
+  const isCancelled = !!match.cancelled;
+  const isAdmin = !!user?.is_admin;
+
+  const handleCancelMatch = () => {
+    confirmAction(
+      '매치 취소',
+      `이 매치를 취소하시겠습니까?\n참여자 ${match.participants.length}명에게 12,000P 씩 자동 환불됩니다.`,
+      async () => {
+        const result = await cancelMatch(match.id);
+        if (result.success) {
+          notify('취소 완료', result.message || '매치가 취소되었습니다.');
+          navigation.goBack();
+        } else {
+          notify('오류', result.message);
+        }
+      },
+      { confirmText: '취소하기', destructive: true },
+    );
+  };
 
   return (
     <SafeAreaView style={commonStyles.container}>
@@ -203,12 +218,20 @@ export default function MatchDetailScreen({ route, navigation }) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
+        {isAdmin && !isCancelled && (
+          <TouchableOpacity
+            style={[commonStyles.button, styles.cancelMatchBtn]}
+            onPress={handleCancelMatch}
+          >
+            <Text style={commonStyles.buttonText}>매치 취소 (운영진)</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
           style={[
-            commonStyles.button, 
-            (isAlreadyJoined || isFull || isStarted) && { backgroundColor: '#A0A0A0' }
+            commonStyles.button,
+            (isAlreadyJoined || isFull || isStarted || isCancelled) && { backgroundColor: '#A0A0A0' }
           ]}
-          disabled={isAlreadyJoined || isFull || isStarted}
+          disabled={isAlreadyJoined || isFull || isStarted || isCancelled}
           onPress={() => {
             if (!user) {
               confirmAction(
@@ -223,13 +246,15 @@ export default function MatchDetailScreen({ route, navigation }) {
           }}
         >
           <Text style={commonStyles.buttonText}>
-            {isAlreadyJoined 
-              ? "이미 참여 완료된 매치입니다" 
-              : isStarted 
-                ? "이미 시작된 매치입니다" 
-                : isFull 
-                  ? "매치가 마감되었습니다" 
-                  : "룸 매치 참여 결제하기"}
+            {isCancelled
+              ? "취소된 매치입니다"
+              : isAlreadyJoined
+                ? "이미 참여 완료된 매치입니다"
+                : isStarted
+                  ? "이미 시작된 매치입니다"
+                  : isFull
+                    ? "매치가 마감되었습니다"
+                    : "매치 참여 결제하기"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -248,45 +273,6 @@ export default function MatchDetailScreen({ route, navigation }) {
                 <Text style={styles.paymentLabel}>내 보유 포인트</Text>
                 <Text style={styles.paymentValue}>{points.toLocaleString()} P</Text>
               </View>
-              
-              <View style={styles.roleSelectionContainer}>
-                <Text style={styles.roleTitle}>참여 유형 선택</Text>
-                <View style={styles.roleButtons}>
-                  <TouchableOpacity 
-                    style={[styles.roleBtn, selectedRole === 'participant' && styles.roleBtnActive]}
-                    onPress={() => setSelectedRole('participant')}
-                  >
-                    <Text style={[styles.roleBtnText, selectedRole === 'participant' && styles.roleBtnTextActive]}>일반 참여</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.roleBtn,
-                      selectedRole === 'host' && styles.roleBtnActive,
-                      match.host && styles.roleBtnDisabled
-                    ]}
-                    onPress={() => {
-                      if (match.host) {
-                        notify('알림', '이미 다른 방장이 신청된 매치입니다.');
-                      } else {
-                        setSelectedRole('host');
-                      }
-                    }}
-                    disabled={!!match.host}
-                  >
-                    <Text style={[styles.roleBtnText, selectedRole === 'host' && styles.roleBtnTextActive]}>방장 참여 (+리워드)</Text>
-                  </TouchableOpacity>
-                </View>
-                {!!match.host && <Text style={styles.hostStatusText}>방장: {match.host}님 선점 완료</Text>}
-              </View>
-
-              {selectedRole === 'host' && (
-                <View style={styles.hostGuideBox}>
-                  <Text style={styles.hostGuideTitle}>👑 방장의 역할 및 혜택</Text>
-                  <Text style={styles.hostGuideText}>• 모든 게임의 룰을 미리 숙지하고 설명해주세요.</Text>
-                  <Text style={styles.hostGuideText}>• 매치 분위기를 활기차게 리드해주세요.</Text>
-                  <Text style={styles.hostGuideText}>• 종료 후 평점 4.0 이상 시 <Text style={{fontWeight: 'bold', color: colors.primary}}>3,000P 페이백!</Text></Text>
-                </View>
-              )}
 
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>차감 예정 포인트</Text>
@@ -551,74 +537,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.primary,
   },
-  roleSelectionContainer: {
-    marginBottom: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border + '50',
-  },
-  roleTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  roleButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  roleBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-  },
-  roleBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
-  },
-  roleBtnDisabled: {
-    opacity: 0.5,
-    backgroundColor: '#F5F5F5',
-  },
-  roleBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textLight,
-  },
-  roleBtnTextActive: {
-    color: colors.primary,
-    fontWeight: 'bold',
-  },
-  hostStatusText: {
-    fontSize: 11,
-    color: colors.error,
-    marginTop: 6,
-    textAlign: 'right',
-  },
-  hostGuideBox: {
-    backgroundColor: '#FFF9E6',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#FFE082',
-  },
-  hostGuideTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#F57F17',
-    marginBottom: 8,
-  },
-  hostGuideText: {
-    fontSize: 12,
-    color: '#5D4037',
-    lineHeight: 18,
-    marginBottom: 2,
-  },
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
@@ -647,5 +565,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  cancelMatchBtn: {
+    backgroundColor: colors.error,
+    marginBottom: 12,
   },
 });

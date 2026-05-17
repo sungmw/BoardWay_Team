@@ -6,7 +6,6 @@ import { commonStyles } from '../theme/styles';
 import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { notify } from '../utils/dialog';
 
 // 달력 한국어 설정
 LocaleConfig.locales['kr'] = {
@@ -20,7 +19,7 @@ LocaleConfig.defaultLocale = 'kr';
 
 export default function MyMatchesScreen({ navigation }) {
   const { matches } = useContext(MatchContext);
-  const { user, reviewedMatches, settledMatches, settleMatchReward } = useContext(AuthContext);
+  const { user, reviewedMatches } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   // 내 매치만 필터링
@@ -71,31 +70,20 @@ export default function MyMatchesScreen({ navigation }) {
     return myMatches.filter(match => match.date === selectedDate);
   }, [myMatches, selectedDate]);
 
-  const handleSettle = async (match) => {
-    const result = await settleMatchReward(match.id);
-    if (result.success) {
-      notify('정산 완료', result.message);
-    } else {
-      notify('알림', result.message);
-    }
-  };
-
   const renderMatchItem = ({ item }) => {
     const isReviewed = reviewedMatches.includes(item.id);
-    
-    // 시간 계산 (매치 시작 시간 + 2시간 종료 + 30분 제한)
+
     const matchStart = new Date(`${item.date}T${item.startTime}:00`);
-    const matchEnd = new Date(matchStart.getTime() + 2 * 60 * 60 * 1000); // 2시간 후 종료
-    const reviewDeadline = new Date(matchEnd.getTime() + 30 * 60 * 1000); // 종료 후 30분까지
+    const matchEnd = new Date(matchStart.getTime() + 2 * 60 * 60 * 1000);
+    const reviewDeadline = new Date(matchEnd.getTime() + 30 * 60 * 1000);
     const now = new Date();
 
     const isPastMatch = now > matchEnd;
     const isWithinWindow = now >= matchEnd && now <= reviewDeadline;
-    const isExpired = now > reviewDeadline;
 
     return (
       <View style={styles.matchItemContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.matchItem}
           onPress={() => navigation.navigate('MatchDetail', { matchId: item.id })}
         >
@@ -112,43 +100,18 @@ export default function MyMatchesScreen({ navigation }) {
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
         </TouchableOpacity>
-        
-        {isPastMatch && (
+
+        {item.cancelled ? (
+          <View style={[styles.reviewBtn, styles.cancelledBtn]}>
+            <Ionicons name="close-circle-outline" size={16} color={colors.error} />
+            <Text style={styles.cancelledBtnText}>취소된 매치 (환불 완료)</Text>
+          </View>
+        ) : isPastMatch && (
           isReviewed ? (
-            isExpired ? (
-              settledMatches.includes(item.id) ? (
-                <View style={[styles.reviewBtn, styles.settledBtn]}>
-                  <Ionicons name="receipt-outline" size={16} color={colors.textLight} />
-                  <Text style={styles.settledBtnText}>정산 완료</Text>
-                </View>
-              ) : (
-                <TouchableOpacity 
-                  style={[styles.reviewBtn, styles.settleBtn]}
-                  onPress={() => handleSettle(item)}
-                >
-                  <Ionicons name="calculator-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.settleBtnText}>정산 결과 확인</Text>
-                </TouchableOpacity>
-              )
-            ) : (
-              <View style={[styles.reviewBtn, styles.reviewedBtn]}>
-                <Ionicons name="time-outline" size={16} color={colors.textLight} />
-                <Text style={styles.reviewedBtnText}>리뷰 완료 (정산 대기중)</Text>
-              </View>
-            )
-          ) : isExpired ? (
-            settledMatches.includes(item.id) ? (
-              <View style={[styles.reviewBtn, styles.settledBtn]}>
-                <Text style={styles.settledBtnText}>정산 완료 (미참여)</Text>
-              </View>
-            ) : (
-              <TouchableOpacity 
-                style={[styles.reviewBtn, styles.settleBtn]}
-                onPress={() => handleSettle(item)}
-              >
-                <Text style={styles.settleBtnText}>정산 결과 확인 (기한만료)</Text>
-              </TouchableOpacity>
-            )
+            <View style={[styles.reviewBtn, styles.reviewedBtn]}>
+              <Ionicons name="checkmark-circle-outline" size={16} color={colors.textLight} />
+              <Text style={styles.reviewedBtnText}>리뷰 완료</Text>
+            </View>
           ) : isWithinWindow ? (
             <TouchableOpacity
               style={styles.reviewBtn}
@@ -336,19 +299,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontStyle: 'italic',
   },
-  settleBtn: {
-    backgroundColor: colors.primary,
+  cancelledBtn: {
+    backgroundColor: '#FFEBEB',
   },
-  settleBtnText: {
-    color: '#FFFFFF',
+  cancelledBtnText: {
+    color: colors.error,
     fontWeight: 'bold',
-    fontSize: 14,
-  },
-  settledBtn: {
-    backgroundColor: '#EEEEEE',
-  },
-  settledBtnText: {
-    color: colors.textLight,
     fontSize: 14,
   },
   matchTimeContainer: {
