@@ -71,8 +71,21 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"message": "Internal Server Error", "detail": str(exc), "traceback": error_details},
     )
 
-def format_match(m):
+def format_match(m, db: Session = None):
     try:
+        rule_video_urls = m.ruleVideoUrls
+        if db and (not rule_video_urls or all(not url for url in rule_video_urls)):
+            if m.games:
+                def normalize(name):
+                    if not name:
+                        return ""
+                    return "".join(c for c in name if c.isalnum()).lower()
+                all_games = db.query(models.Game).all()
+                db_game_map = {normalize(g.name): g.ruleUrl for g in all_games}
+                rule_video_urls = [db_game_map.get(normalize(game_name), "") for game_name in m.games]
+            else:
+                rule_video_urls = []
+
         return {
             "id": m.match_id,
             "games": m.games,
@@ -80,7 +93,7 @@ def format_match(m):
             "tags": m.tags,
             "date": m.date,
             "startTime": m.startTime,
-            "ruleVideoUrls": m.ruleVideoUrls,
+            "ruleVideoUrls": rule_video_urls,
             "location": {
                 "venue": m.venue,
                 "branch": m.branch,
@@ -89,6 +102,7 @@ def format_match(m):
             "maxPlayers": m.maxPlayers,
             "host": m.host_nickname,
             "cancelled": m.cancelled,
+            "is_flexible": m.is_flexible,
             "participants": [{"nickname": p.nickname, "mannerScore": p.mannerScore, "isMe": False} for p in m.participants]
         }
     except Exception as e:
@@ -109,7 +123,7 @@ def read_root():
 @app.get("/matches")
 def get_matches(db: Session = Depends(get_db)):
     matches = crud.get_matches(db)
-    formatted = [format_match(m) for m in matches]
+    formatted = [format_match(m, db) for m in matches]
     return {"matches": [f for f in formatted if f is not None]}
 
 @app.get("/matches/{match_id}")
@@ -117,7 +131,7 @@ def get_match(match_id: str, db: Session = Depends(get_db)):
     match = crud.get_match_by_match_id(db, match_id)
     if not match:
         raise HTTPException(status_code=404, detail="매치를 찾을 수 없습니다.")
-    return format_match(match)
+    return format_match(match, db)
 
 @app.post("/matches")
 def create_match(
@@ -125,10 +139,20 @@ def create_match(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="매치 생성은 운영진만 가능합니다.")
-    new_match = crud.create_match(db, match, creator_user_id=current_user.id)
-    return format_match(new_match)
+    new_match = crud.create_match(
+        db, match, creator_user_id=current_user.id, host_nickname=current_user.nickname
+    )
+
+    # 매치 개설 알림 발송
+    games_label = ", ".join(new_match.games or ["자율 선택"])
+    crud.create_notification(
+        db, current_user.id, "match_created",
+        "매칭 개설 완료",
+        f"[{games_label}] 매칭 개설 및 {12000:,}P 결제가 완료되었습니다. 방장으로서 참여자들을 기다려주세요!",
+        match_business_id=new_match.match_id
+    )
+
+    return format_match(new_match, db)
 
 
 @app.delete("/matches/{match_id}")
@@ -182,7 +206,7 @@ def leave_match(match_id: str, db: Session = Depends(get_db), current_user: mode
 @app.get("/my-matches")
 def get_my_matches(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     matches = crud.get_user_matches(db, current_user.nickname)
-    return {"matches": [format_match(m) for m in matches]}
+    return {"matches": [format_match(m, db) for m in matches]}
 
 @app.get("/games")
 def get_games(request: Request, db: Session = Depends(get_db)):
@@ -247,6 +271,19 @@ def adjust_my_points(
     )
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # 일반적인 포인트 충전/사용 시에만 알림 발송 (매칭 결제/참여취소 환불 등은 별도 알림 존재하므로 제외)
+    desc = payload.description or ""
+    if "참여" not in desc and "환불" not in desc and "취소" not in desc:
+        type_ = "point_recharged" if payload.delta > 0 else "point_used"
+        title = "포인트 충전 완료" if payload.delta > 0 else "포인트 사용 완료"
+        crud.create_notification(
+            db, current_user.id, type_,
+            title,
+            f"{abs(payload.delta):,}P 가 {desc} 처리되었습니다. (현재 보유 포인트: {updated.points:,}P)",
+            match_business_id=None
+        )
+
     return updated
 
 

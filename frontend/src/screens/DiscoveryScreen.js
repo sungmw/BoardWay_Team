@@ -99,7 +99,7 @@ export default function DiscoveryScreen({ navigation }) {
       <Text style={[styles.dateNumber, activeDate === item.full && styles.dateTextActive]}>
         {item.date}
       </Text>
-      {item.isToday && <View style={styles.todayDot} />}
+      {item.isToday && <View style={[styles.todayDot, activeDate === item.full && { backgroundColor: colors.primary }]} />}
     </TouchableOpacity>
   );
 
@@ -114,7 +114,11 @@ export default function DiscoveryScreen({ navigation }) {
     
     return (
       <TouchableOpacity 
-        style={[commonStyles.card, (isFull || isStarted) && styles.cardFull]}
+        style={[
+          commonStyles.card, 
+          (isFull || isStarted) && styles.cardFull,
+          item.is_flexible && { borderLeftColor: '#9B59B6', backgroundColor: '#FDFBFF' }
+        ]}
         onPress={() => !(isFull || isStarted) && navigation.navigate('MatchDetail', { matchId: item.id })}
         activeOpacity={(isFull || isStarted) ? 1 : 0.8}
       >
@@ -131,9 +135,20 @@ export default function DiscoveryScreen({ navigation }) {
         )}
         
         <View style={styles.cardHeader}>
-          <Text style={[styles.gameName, isFull && styles.textFull]} numberOfLines={2}>
-            {item.games.join(' ➔ ')}
-          </Text>
+          {item.is_flexible ? (
+            <View style={{ flex: 1 }}>
+              <View style={[styles.flexibleBadge, isFull && { backgroundColor: colors.textLight }]}>
+                <Text style={styles.flexibleBadgeText}>자율성 매치</Text>
+              </View>
+              <Text style={[styles.gameName, isFull && styles.textFull, { color: '#9B59B6', marginTop: 4 }]} numberOfLines={2}>
+                🎲 모여서 게임 선택
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.gameName, isFull && styles.textFull]} numberOfLines={2}>
+              {item.games.join(' ➔ ')}
+            </Text>
+          )}
           {item.host && (
             <View style={styles.hostBadgeCard}>
               <Text style={styles.hostBadgeCardText}>👑 {item.host}</Text>
@@ -148,8 +163,9 @@ export default function DiscoveryScreen({ navigation }) {
         </View>
         
         <View style={styles.locationContainer}>
-          <Text style={[styles.locationText, isFull && styles.textFull]}>
-            📍 {item.location.venue} {item.location.branch}
+          <Ionicons name="location-outline" size={16} color={colors.textLight} style={{ marginRight: 4 }} />
+          <Text style={[styles.locationText, isFull && styles.textFull]} numberOfLines={1}>
+            {item.location.venue} {item.location.branch}
           </Text>
         </View>
 
@@ -162,8 +178,14 @@ export default function DiscoveryScreen({ navigation }) {
         </View>
 
         <View style={styles.cardFooter}>
-          <Text style={[styles.timeText, isFull && styles.textFull]}>시작: {item.startTime}</Text>
-          <Text style={[styles.playersText, isFull && styles.textFull]}>모집: {item.participants.length}/{item.maxPlayers}명</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="time-outline" size={16} color={colors.textLight} />
+            <Text style={[styles.timeText, isFull && styles.textFull]}>시작: {item.startTime}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="people-outline" size={16} color={isFull ? colors.textLight : colors.primary} />
+            <Text style={[styles.playersText, isFull && styles.textFull, { color: isFull ? colors.textLight : colors.primary }]}>모집: {item.participants.length}/{item.maxPlayers}명</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -184,7 +206,7 @@ export default function DiscoveryScreen({ navigation }) {
                   onPress={() => navigation.navigate('Notifications')}
                   style={styles.bellBtn}
                 >
-                  <Ionicons name="notifications-outline" size={24} color={colors.primary} />
+                  <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
                   {unreadCount > 0 && (
                     <View style={styles.bellBadge}>
                       <Text style={styles.bellBadgeText}>
@@ -324,7 +346,7 @@ export default function DiscoveryScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {user?.is_admin && (
+      {user && (
         <TouchableOpacity
           style={styles.fab}
           onPress={() => navigation.navigate('CreateMatch')}
@@ -355,9 +377,9 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   headerContainer: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
     paddingTop: 16,
   },
   headerTextWrap: {
@@ -366,13 +388,16 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 20,
-    color: colors.text,
+    color: '#FFFFFF',
+    opacity: 0.85,
+    userSelect: 'none',
   },
   mainTitleBold: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: colors.primary,
+    color: colors.secondary,
     marginTop: 4,
+    userSelect: 'none',
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -409,23 +434,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   authBtn: {
-    backgroundColor: colors.background,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   authBtnText: {
     fontSize: 12,
-    color: colors.textLight,
+    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   // 날짜 선택 섹션
   dateSelectorContainer: {
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.border + '50',
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
   dateListContent: {
     paddingHorizontal: 16,
@@ -437,26 +462,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     marginRight: 10,
-    backgroundColor: colors.background,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   dateItemActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
   },
   dateDay: {
     fontSize: 12,
-    color: colors.textLight,
+    color: 'rgba(255,255,255,0.5)',
     marginBottom: 4,
   },
   dateNumber: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   dateTextActive: {
-    color: '#FFFFFF',
+    color: colors.primary,
   },
   todayDot: {
     position: 'absolute',
@@ -546,6 +571,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
   },
+  flexibleBadge: {
+    backgroundColor: '#9B59B6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  flexibleBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
   myMatchBadge: {
     backgroundColor: '#E8F5E9',
     paddingHorizontal: 8,
@@ -564,12 +601,15 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 12,
   },
   locationText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#34495E',
+    flex: 1,
   },
   tagsContainer: {
     flexDirection: 'row',

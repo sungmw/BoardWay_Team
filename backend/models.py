@@ -91,6 +91,7 @@ class Match(Base):
     host_nickname = Column(String, nullable=True)
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     cancelled = Column(Boolean, default=False, nullable=False)
+    is_flexible = Column(Boolean, default=False, nullable=False)
 
     participants = relationship("MatchParticipant", back_populates="match", cascade="all, delete-orphan")
 

@@ -31,7 +31,7 @@ def get_matches(db: Session):
 def get_match_by_match_id(db: Session, match_id: str):
     return db.query(models.Match).filter(models.Match.match_id == match_id).first()
 
-def create_match(db: Session, match: schemas.MatchCreate, creator_user_id: int = None):
+def create_match(db: Session, match: schemas.MatchCreate, creator_user_id: int = None, host_nickname: str = None):
     new_match_id = f"m-{str(uuid.uuid4())[:8]}"
     db_match = models.Match(
         match_id=new_match_id,
@@ -46,8 +46,21 @@ def create_match(db: Session, match: schemas.MatchCreate, creator_user_id: int =
         address=match.location.address,
         maxPlayers=match.maxPlayers,
         created_by_user_id=creator_user_id,
+        host_nickname=host_nickname,
+        is_flexible=match.is_flexible,
     )
     db.add(db_match)
+    db.flush()
+
+    if host_nickname:
+        user = get_user_by_nickname(db, host_nickname)
+        p = models.MatchParticipant(
+            match_id=db_match.id,
+            nickname=host_nickname,
+            mannerScore=user.mannerScore if user else 5
+        )
+        db.add(p)
+
     db.commit()
     db.refresh(db_match)
     return db_match
@@ -79,6 +92,27 @@ def join_match(db: Session, match_id: str, participant_nickname: str, role: str 
 
     if role == "host":
         db_match.host_nickname = participant_nickname
+
+    # 알림 생성
+    games_label = ", ".join(db_match.games or [])
+    if user:
+        create_notification(
+            db, user.id, "match_joined",
+            "매칭 참여 완료",
+            f"[{games_label}] 매치 참여 및 {MATCH_PARTICIPATION_COST:,}P 결제가 완료되었습니다.",
+            match_business_id=db_match.match_id
+        )
+    
+    # 방장이 있는 경우, 방장에게 새 참가자 참여 알림 전송 (단, 방장 본인 제외)
+    if db_match.host_nickname and db_match.host_nickname != participant_nickname:
+        host_user = get_user_by_nickname(db, db_match.host_nickname)
+        if host_user:
+            create_notification(
+                db, host_user.id, "participant_joined",
+                "새로운 매칭 참가자",
+                f"{participant_nickname}님이 [{games_label}] 매칭에 참여하셨습니다.",
+                match_business_id=db_match.match_id
+            )
 
     db.commit()
     db.refresh(db_match)
@@ -121,6 +155,28 @@ def leave_match(db: Session, match_id: str, nickname: str):
         db, nickname, MATCH_PARTICIPATION_COST,
         f"[{', '.join(db_match.games or [])}] 참여 취소 환불",
     )
+
+    # 알림 생성
+    user = get_user_by_nickname(db, nickname)
+    games_label = ", ".join(db_match.games or [])
+    if user:
+        create_notification(
+            db, user.id, "match_left",
+            "매칭 참여 취소 완료",
+            f"[{games_label}] 매치 참여를 취소하여 {MATCH_PARTICIPATION_COST:,}P 가 환불되었습니다.",
+            match_business_id=db_match.match_id
+        )
+
+    # 방장이 있는 경우, 방장에게 참여자 탈퇴 알림 전송 (단, 방장 본인 제외)
+    if db_match.host_nickname and db_match.host_nickname != nickname:
+        host_user = get_user_by_nickname(db, db_match.host_nickname)
+        if host_user:
+            create_notification(
+                db, host_user.id, "participant_left",
+                "참가자 매칭 취소",
+                f"{nickname}님이 [{games_label}] 매칭 참여를 취소했습니다.",
+                match_business_id=db_match.match_id
+            )
 
     return {"refunded": MATCH_PARTICIPATION_COST}
 
@@ -182,7 +238,7 @@ def _recompute_manner_score(db: Session, nickname: str):
 
 
 def create_match_reviews(db: Session, reviewer_id: int, match_business_id: str, items, comment: str = ""):
-    """한 매치에 대한 참여자별 리뷰 N개를 한 트랜잭션으로 INSERT + reviewee 들의 매너 온도 자동 갱신.
+    """한 매치에 대한 참여자별 리뷰 N개를 한 트랜잭션으로 INSERT + reviewee 들의 매너 주사위 자동 갱신.
 
     Returns:
         - None: 매치 못 찾음
@@ -222,6 +278,21 @@ def create_match_reviews(db: Session, reviewer_id: int, match_business_id: str, 
         _recompute_manner_score(db, nickname)
 
     db.commit()
+
+    # 알림 생성 (리뷰가 정상 등록된 후 피평가자들에게 전송)
+    reviewer = db.query(models.User).filter(models.User.id == reviewer_id).first()
+    reviewer_nickname = reviewer.nickname if reviewer else "참여자"
+    games_label = ", ".join(match.games or [])
+    for nickname in affected_nicknames:
+        reviewee_user = get_user_by_nickname(db, nickname)
+        if reviewee_user:
+            create_notification(
+                db, reviewee_user.id, "manner_evaluated",
+                "매너 주사위 평가 도착",
+                f"[{games_label}] 매치 참여자({reviewer_nickname}님)가 회원님에게 매너 주사위 평가를 남겼습니다. 마이페이지에서 확인해 보세요!",
+                match_business_id=match.match_id
+            )
+
     for row in created:
         db.refresh(row)
     return created

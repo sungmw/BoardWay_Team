@@ -1,6 +1,7 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useContext, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Switch, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Calendar } from 'react-native-calendars';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
 import { notify } from '../utils/dialog';
@@ -9,6 +10,40 @@ import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 
 const DIFFICULTIES = ['쉬움', '보통', '어려움', '매우 어려움'];
+const TAG_OPTIONS = ['입문', '전략', '파티', '마피아', '심리전', '추리', '두뇌', '힐링', '협력', '고전'];
+const TIME_SLOTS = ['13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+const VENUE_OPTIONS = {
+  '레드버튼': [
+    { branch: '강남점', address: '서울 강남구 강남대로 442' },
+    { branch: '강남2호점', address: '서울 강남구 강남대로96길 9' },
+    { branch: '신촌점', address: '서울 서대문구 연세로 8' },
+    { branch: '노원점', address: '서울 노원구 상계로 74' },
+    { branch: '일산점', address: '경기 고양시 일산동구 중앙로1261번길 57' },
+    { branch: '안양점', address: '경기 안양시 만안구 만안로 222' },
+    { branch: '범계점', address: '경기 안양시 동안구 평촌대로223번길 52' },
+  ],
+  '홈즈앤루팡': [
+    { branch: '홍대점', address: '서울 마포구 홍익로3길 20' },
+    { branch: '잠실점', address: '서울 송파구 백제고분로7길 22' },
+    { branch: '인천구월점', address: '인천 남동구 인하로507번길 18' },
+    { branch: '수원역점', address: '경기 수원시 팔달구 향교로 3' },
+    { branch: '분당점', address: '경기 성남시 분당구 서현로 210' },
+    { branch: '서현점', address: '경기 성남시 분당구 황새울로360번길 12' },
+  ],
+  '포퀸스': [
+    { branch: '건대점', address: '서울 광진구 아차산로 224' },
+    { branch: '수유점', address: '서울 강북구 도봉로87길 14' },
+    { branch: '부평점', address: '인천 부평구 시장로 24' },
+    { branch: '의정부점', address: '경기 의정부시 시민로121번길 34-1' },
+  ],
+  '히어로보드게임카페': [
+    { branch: '홍대점', address: '서울 마포구 와우산로21길 31-10' },
+    { branch: '건대점', address: '서울 광진구 아차산로25길 8' },
+  ],
+  '보드게임카페 미플': [
+    { branch: '신촌점', address: '서울 서대문구 신촌로 109' }
+  ]
+};
 
 function tomorrowISO() {
   const d = new Date();
@@ -18,23 +53,85 @@ function tomorrowISO() {
 
 export default function CreateMatchScreen({ navigation }) {
   const { fetchMatches } = useContext(MatchContext);
-  const { token } = useContext(AuthContext);
+  const { token, user, points, usePoints } = useContext(AuthContext);
 
-  const [gamesText, setGamesText] = useState('');
+  const [dbGames, setDbGames] = useState([]);
+  const [selectedGames, setSelectedGames] = useState([]);
   const [difficulty, setDifficulty] = useState('보통');
-  const [tagsText, setTagsText] = useState('');
+
+  useEffect(() => {
+    loadGames();
+  }, []);
+
+  const loadGames = async () => {
+    try {
+      const response = await apiFetch('/games');
+      if (response.ok) {
+        const data = await response.json();
+        setDbGames(data.games || []);
+      }
+    } catch (e) {
+      console.error('Failed to load games', e);
+    }
+  };
+
+  const handleGameToggle = (gameName) => {
+    setSelectedGames((prev) => {
+      if (prev.includes(gameName)) {
+        return prev.filter((name) => name !== gameName);
+      } else {
+        if (prev.length >= 3) {
+          notify('알림', '게임은 최대 3개까지 선택할 수 있습니다.');
+          return prev;
+        }
+        return [...prev, gameName];
+      }
+    });
+  };
+  const [selectedTags, setSelectedTags] = useState([]);
   const [date, setDate] = useState(tomorrowISO());
   const [startTime, setStartTime] = useState('18:00');
   const [venue, setVenue] = useState('');
   const [branch, setBranch] = useState('');
   const [address, setAddress] = useState('');
   const [maxPlayers, setMaxPlayers] = useState('4');
+  const [isFlexible, setIsFlexible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [roleModalVisible, setRoleModalVisible] = useState(false);
+
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showVenueModal, setShowVenueModal] = useState(false);
+  const [showBranchModal, setShowBranchModal] = useState(false);
+
+  const handleTagToggle = (tag) => {
+    setSelectedTags((prev) => {
+      if (prev.includes(tag)) {
+        return prev.filter(t => t !== tag);
+      } else {
+        return [...prev, tag];
+      }
+    });
+  };
+
+  const handleVenueSelect = (selectedVenue) => {
+    setVenue(selectedVenue);
+    setBranch('');
+    setAddress('');
+    setShowVenueModal(false);
+  };
+
+  const handleBranchSelect = (selectedBranchItem) => {
+    setBranch(selectedBranchItem.branch);
+    setAddress(selectedBranchItem.address);
+    setShowBranchModal(false);
+  };
 
   const handleSubmit = async () => {
-    const games = gamesText.split(',').map(s => s.trim()).filter(Boolean);
-    if (games.length === 0) {
-      notify('알림', '게임을 1개 이상 입력해주세요. (콤마로 구분)');
+    const isFlexibleChecked = isFlexible;
+    const games = isFlexibleChecked ? ['자율 선택'] : selectedGames;
+
+    if (!isFlexibleChecked && games.length === 0) {
+      notify('알림', '게임을 1개 이상 선택해주세요.');
       return;
     }
     if (!venue.trim() || !branch.trim() || !address.trim()) {
@@ -55,21 +152,48 @@ export default function CreateMatchScreen({ navigation }) {
       return;
     }
 
+    if (points < 12000) {
+      notify('포인트 부족', '보유 포인트가 부족합니다. 매치 생성 및 참여를 위해 최소 12,000P가 필요합니다. 충전 후 이용해주세요.');
+      return;
+    }
+
+    // 팝업 표시
+    setRoleModalVisible(true);
+  };
+
+  const executeSubmit = async () => {
+    setRoleModalVisible(false);
     setSubmitting(true);
+
+    const isFlexibleChecked = isFlexible;
+    const games = isFlexibleChecked ? ['자율 선택'] : selectedGames;
+    const gamesLabel = isFlexibleChecked ? '자율 선택' : games.join(', ');
+
+    // 포인트 선결제 진행
+    const pointResult = await usePoints(12000, `[${gamesLabel}] 매치 개설 결제`);
+    if (!pointResult.success) {
+      notify('결제 오류', pointResult.message || '포인트 차감에 실패했습니다. 다시 시도해주세요.');
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const body = {
         games,
         difficulty,
-        tags: tagsText.split(',').map(s => s.trim()).filter(Boolean),
+        tags: selectedTags,
         date,
         startTime,
         ruleVideoUrls: [],
         location: { venue: venue.trim(), branch: branch.trim(), address: address.trim() },
-        maxPlayers: players,
+        maxPlayers: parseInt(maxPlayers, 10),
+        is_flexible: isFlexibleChecked,
       };
       const res = await apiFetch('/matches', { method: 'POST', token, json: body });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        // 결제 후 실패 시 환불 처리 (복구용도)
+        await usePoints(-12000, `[${gamesLabel}] 매치 개설 실패 환불`);
         notify('생성 실패', data.detail || '매치 생성에 실패했습니다.');
         return;
       }
@@ -79,7 +203,9 @@ export default function CreateMatchScreen({ navigation }) {
       navigation.replace('MatchDetail', { matchId: created.id });
     } catch (e) {
       console.error('Create match error:', e);
-      notify('오류', '서버와 연결할 수 없습니다.');
+      // 결제 후 실패 시 환불 처리
+      await usePoints(-12000, `[${gamesLabel}] 매치 개설 에러 환불`);
+      notify('오류', '서버와 연결할 수 없습니다. 포인트가 환불 처리되었습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -96,13 +222,59 @@ export default function CreateMatchScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.label}>게임 (콤마로 구분)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="예: 스플랜더, 카탄"
-          value={gamesText}
-          onChangeText={setGamesText}
-        />
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.switchLabel}>자율성 매치로 개설</Text>
+            <Text style={styles.switchSubLabel}>사전에 게임을 정하지 않고 오프라인에서 모여 직접 정합니다.</Text>
+          </View>
+          <Switch
+            value={isFlexible}
+            onValueChange={setIsFlexible}
+            trackColor={{ false: '#D1D5DB', true: '#9B59B6' }}
+            thumbColor={isFlexible ? '#FFF' : '#f4f3f4'}
+          />
+        </View>
+
+        {!isFlexible && (
+          <>
+            <Text style={styles.label}>게임 선택 (최대 3개)</Text>
+            {dbGames.length === 0 ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+            ) : (
+              <View style={styles.gamesSelectGrid}>
+                {dbGames.map((game) => {
+                  const isSelected = selectedGames.includes(game.name);
+                  return (
+                    <TouchableOpacity
+                      key={game.id}
+                      style={[
+                        styles.gameSelectCard,
+                        isSelected && styles.gameSelectCardActive
+                      ]}
+                      onPress={() => handleGameToggle(game.name)}
+                      activeOpacity={0.7}
+                    >
+                      {isSelected && (
+                        <View style={styles.selectedCheckBadge}>
+                          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                        </View>
+                      )}
+                      {game.image && (
+                        <Image source={{ uri: game.image }} style={styles.gameSelectImage} />
+                      )}
+                      <Text 
+                        style={[styles.gameSelectName, isSelected && styles.gameSelectNameActive]}
+                        numberOfLines={2}
+                      >
+                        {game.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </>
+        )}
 
         <Text style={styles.label}>난이도</Text>
         <View style={styles.difficultyRow}>
@@ -117,59 +289,85 @@ export default function CreateMatchScreen({ navigation }) {
           ))}
         </View>
 
-        <Text style={styles.label}>태그 (선택, 콤마로 구분)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="예: 전략, 입문"
-          value={tagsText}
-          onChangeText={setTagsText}
-        />
+        <Text style={styles.label}>태그 선택 (선택 사항)</Text>
+        <View style={styles.tagsGrid}>
+          {TAG_OPTIONS.map((tag) => {
+            const isSelected = selectedTags.includes(tag);
+            return (
+              <TouchableOpacity
+                key={tag}
+                style={[styles.tagSelectBtn, isSelected && styles.tagSelectBtnActive]}
+                onPress={() => handleTagToggle(tag)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tagSelectText, isSelected && styles.tagSelectTextActive]}>#{tag}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.label}>날짜 (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="2026-05-17"
-              value={date}
-              onChangeText={setDate}
-              autoCapitalize="none"
-            />
-          </View>
-          <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.label}>시간 (HH:MM)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="18:00"
-              value={startTime}
-              onChangeText={setStartTime}
-            />
+        <View style={[styles.row, { marginTop: 16 }]}>
+          <TouchableOpacity 
+            style={[styles.selectInputButton, { flex: 1, marginRight: 6 }]}
+            onPress={() => setShowCalendar(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.selectInputButtonLabel}>모임 날짜 📅</Text>
+            <Text style={styles.selectInputButtonValue}>{date}</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1, marginLeft: 6, justifyContent: 'center' }}>
+            <Text style={styles.selectInputButtonLabel}>선택된 시간 ⏰</Text>
+            <Text style={[styles.selectInputButtonValue, { color: colors.primary, fontWeight: 'bold' }]}>{startTime}</Text>
           </View>
         </View>
 
-        <Text style={styles.label}>장소 — 매장</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="예: 레드버튼"
-          value={venue}
-          onChangeText={setVenue}
-        />
+        <Text style={styles.label}>모임 시간 선택 ⏰</Text>
+        <View style={styles.timeSlotsGrid}>
+          {TIME_SLOTS.map((slot) => {
+            const isSelected = startTime === slot;
+            return (
+              <TouchableOpacity
+                key={slot}
+                style={[styles.timeSlotBtn, isSelected && styles.timeSlotBtnActive]}
+                onPress={() => setStartTime(slot)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.timeSlotText, isSelected && styles.timeSlotTextActive]}>{slot}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-        <Text style={styles.label}>장소 — 지점</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="예: 강남점"
-          value={branch}
-          onChangeText={setBranch}
-        />
-
-        <Text style={styles.label}>장소 — 주소</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="예: 서울 강남구"
-          value={address}
-          onChangeText={setAddress}
-        />
+        <Text style={styles.label}>장소 선택 📍</Text>
+        <View style={styles.row}>
+          <TouchableOpacity 
+            style={[styles.selectInputButton, { flex: 1, marginRight: 6 }]}
+            onPress={() => setShowVenueModal(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.selectInputButtonLabel}>보드게임 카페</Text>
+            <Text style={styles.selectInputButtonValue}>{venue || '선택 안 됨'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.selectInputButton, 
+              { flex: 1, marginLeft: 6 },
+              !venue && { opacity: 0.5 }
+            ]}
+            onPress={() => venue && setShowBranchModal(true)}
+            disabled={!venue}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.selectInputButtonLabel}>지점 선택</Text>
+            <Text style={styles.selectInputButtonValue}>{branch || '선택 안 됨'}</Text>
+          </TouchableOpacity>
+        </View>
+        {address ? (
+          <View style={styles.addressBox}>
+            <Ionicons name="map-outline" size={16} color={colors.textLight} style={{ marginRight: 6 }} />
+            <Text style={styles.addressBoxText}>주소: {address}</Text>
+          </View>
+        ) : null}
 
         <Text style={styles.label}>최대 인원</Text>
         <TextInput
@@ -189,6 +387,146 @@ export default function CreateMatchScreen({ navigation }) {
         </TouchableOpacity>
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={roleModalVisible}
+        onRequestClose={() => setRoleModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="ribbon-outline" size={24} color={colors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.modalTitle}>👑 방장의 역할 및 수칙 동의</Text>
+            </View>
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalSubText}>
+                BoardWay의 즐겁고 원활한 보드게임 문화를 위해 방장(Host)으로 개설하는 회원은 아래 사항을 준수하고 리드할 책임이 있습니다.
+              </Text>
+              
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleTitle}>💎 참여비 12,000P 결제</Text>
+                <Text style={styles.ruleDesc}>방장 역시 매칭의 실제 참가자로 등록되며 개설 즉시 보유 포인트에서 12,000P가 차감됩니다.</Text>
+              </View>
+
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleTitle}>📍 10분 전 현장 대기</Text>
+                <Text style={styles.ruleDesc}>원활한 인원 확인과 예약을 위해 모임 약속 시간 10분 전까지 해당 카페 지점에 도착해 주셔야 합니다.</Text>
+              </View>
+
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleTitle}>🎲 설명 및 게임 리드</Text>
+                <Text style={styles.ruleDesc}>참여자들에게 게임의 룰을 상냥하고 명확히 설명해 주고, 초보자 분들도 낙오되지 않도록 게임 테이블의 분위기를 지탱해 주세요.</Text>
+              </View>
+
+              <View style={styles.ruleItem}>
+                <Text style={styles.ruleTitle}>🎁 우수 방장 리워드 (3,000P 반환)</Text>
+                <Text style={styles.ruleDesc}>매칭이 종료된 후, 참여자들로부터 받은 매너 주사위 평가 평균이 4.0점 이상일 경우 감사 리워드로 3,000P를 페이백 해드립니다.</Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.cancelBtn]}
+                onPress={() => setRoleModalVisible(false)}
+              >
+                <Text style={styles.cancelBtnText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalBtn, styles.confirmBtn]}
+                onPress={executeSubmit}
+              >
+                <Text style={styles.confirmBtnText}>동의하고 매칭 개설</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 달력 모달 */}
+      <Modal visible={showCalendar} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarModalContent}>
+            <Text style={styles.modalTitle}>날짜 선택</Text>
+            <Calendar
+              current={date}
+              minDate={tomorrowISO()}
+              onDayPress={(day) => {
+                setDate(day.dateString);
+                setShowCalendar(false);
+              }}
+              markedDates={{
+                [date]: { selected: true, selectedColor: colors.primary }
+              }}
+              theme={{
+                selectedDayBackgroundColor: colors.primary,
+                todayTextColor: colors.primary,
+                arrowColor: colors.primary,
+              }}
+            />
+            <TouchableOpacity 
+              style={[styles.modalBtn, styles.cancelBtn, { marginTop: 16 }]}
+              onPress={() => setShowCalendar(false)}
+            >
+              <Text style={styles.cancelBtnText}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 카페 선택 모달 */}
+      <Modal visible={showVenueModal} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarModalContent}>
+            <Text style={styles.modalTitle}>보드게임 카페 선택</Text>
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              {Object.keys(VENUE_OPTIONS).map((v) => (
+                <TouchableOpacity
+                  key={v}
+                  style={styles.optionItem}
+                  onPress={() => handleVenueSelect(v)}
+                >
+                  <Text style={styles.optionItemText}>{v}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity 
+              style={[styles.modalBtn, styles.cancelBtn, { marginTop: 16 }]}
+              onPress={() => setShowVenueModal(false)}
+            >
+              <Text style={styles.cancelBtnText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 지점 선택 모달 */}
+      <Modal visible={showBranchModal} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarModalContent}>
+            <Text style={styles.modalTitle}>{venue} 지점 선택</Text>
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              {(VENUE_OPTIONS[venue] || []).map((b) => (
+                <TouchableOpacity
+                  key={b.branch}
+                  style={styles.optionItem}
+                  onPress={() => handleBranchSelect(b)}
+                >
+                  <Text style={styles.optionItemText}>{b.branch}</Text>
+                  <Text style={{ fontSize: 12, color: colors.textLight, marginTop: 2 }}>{b.address}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity 
+              style={[styles.modalBtn, styles.cancelBtn, { marginTop: 16 }]}
+              onPress={() => setShowBranchModal(false)}
+            >
+              <Text style={styles.cancelBtnText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -250,5 +588,265 @@ const styles = StyleSheet.create({
   difficultyTextActive: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  switchLabel: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  switchSubLabel: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginTop: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  modalScroll: {
+    marginBottom: 20,
+  },
+  modalSubText: {
+    fontSize: 13,
+    color: colors.textLight,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 16,
+    backgroundColor: colors.background,
+    padding: 10,
+    borderRadius: 8,
+  },
+  ruleItem: {
+    marginBottom: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    paddingLeft: 10,
+  },
+  ruleTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 3,
+  },
+  ruleDesc: {
+    fontSize: 12,
+    color: colors.textLight,
+    lineHeight: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textLight,
+  },
+  confirmBtn: {
+    backgroundColor: colors.primary,
+  },
+  confirmBtnText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  gamesSelectGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  gameSelectCard: {
+    width: '23%',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    position: 'relative',
+  },
+  gameSelectCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#F4F7FB',
+  },
+  selectedCheckBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    zIndex: 2,
+  },
+  gameSelectImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#F1F2F6',
+  },
+  gameSelectName: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  gameSelectNameActive: {
+    color: colors.primary,
+  },
+  selectInputButton: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'center',
+  },
+  selectInputButtonLabel: {
+    fontSize: 11,
+    color: colors.textLight,
+    fontWeight: 'bold',
+  },
+  selectInputButtonValue: {
+    fontSize: 15,
+    color: colors.text,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  addressBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  addressBoxText: {
+    fontSize: 13,
+    color: colors.text,
+    flex: 1,
+  },
+  timeSlotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  timeSlotBtn: {
+    width: '30%',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  timeSlotBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#F4F7FB',
+  },
+  timeSlotText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  timeSlotTextActive: {
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  tagsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  tagSelectBtn: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  tagSelectBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#F4F7FB',
+  },
+  tagSelectText: {
+    fontSize: 12,
+    color: colors.textLight,
+  },
+  tagSelectTextActive: {
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  calendarModalContent: {
+    width: '90%',
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  optionItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  optionItemText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '600',
   },
 });

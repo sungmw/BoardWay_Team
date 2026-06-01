@@ -21,6 +21,7 @@ class MatchBase(BaseModel):
     ruleVideoUrls: List[str]
     location: LocationBase
     maxPlayers: int
+    is_flexible: bool = False
 
 class MatchCreate(MatchBase):
     pass

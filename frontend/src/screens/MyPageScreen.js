@@ -9,6 +9,7 @@ import { notify, confirmAction } from '../utils/dialog';
 export default function MyPageScreen({ navigation }) {
   const { user, logout, points, rechargePoints } = useContext(AuthContext);
   const [rechargeModalVisible, setRechargeModalVisible] = useState(false);
+  const [mannerModalVisible, setMannerModalVisible] = useState(false);
 
   const handleLogout = async () => {
     confirmAction(
@@ -43,8 +44,8 @@ export default function MyPageScreen({ navigation }) {
   const getDiceIcon = (score) => {
     const numToWord = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
     const roundedScore = Math.round(score);
-    if (roundedScore <= 1) return "dice-outline";
-    return `dice-${numToWord[Math.min(roundedScore, 6)]}-outline`;
+    if (roundedScore <= 1) return "dice-one";
+    return `dice-${numToWord[Math.min(roundedScore, 6)]}`;
   };
 
   return (
@@ -69,13 +70,29 @@ export default function MyPageScreen({ navigation }) {
             </View>
             
             <View style={styles.statsContainer}>
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>매너 온도</Text>
-                <View style={styles.diceContainer}>
-                  <Ionicons name={getDiceIcon(user.mannerScore)} size={32} color={colors.primary} />
-                  <Text style={styles.statValue}>{user.mannerScore.toFixed(1)}°C</Text>
+              <TouchableOpacity 
+                style={styles.statBox}
+                onPress={() => setMannerModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={styles.statLabel}>매너 주사위</Text>
+                  <Ionicons name="help-circle-outline" size={14} color={colors.textLight} style={{ marginBottom: 8 }} />
                 </View>
-              </View>
+                <View style={styles.diceContainer}>
+                  <View style={{ flexDirection: 'row', gap: 3, marginRight: 6 }}>
+                    {[1, 2, 3, 4, 5, 6].map((num) => (
+                      <Ionicons 
+                        key={num} 
+                        name={Math.round(user.mannerScore) >= num ? "dice" : "dice-outline"} 
+                        size={20} 
+                        color={Math.round(user.mannerScore) >= num ? colors.secondary : colors.border} 
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.statValue}>{user.mannerScore.toFixed(1)}</Text>
+                </View>
+              </TouchableOpacity>
               <View style={[styles.statBox, styles.statBoxDivider]}>
                 <Text style={styles.statLabel}>보유 포인트</Text>
                 <Text style={[styles.statValue, { color: colors.secondary }]}>{points.toLocaleString()} P</Text>
@@ -169,6 +186,72 @@ export default function MyPageScreen({ navigation }) {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 매너 주사위 설명 모달 */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={mannerModalVisible}
+        onRequestClose={() => setMannerModalVisible(false)}
+      >
+        <View style={styles.modalOverlayCentered}>
+          <View style={styles.mannerModalContent}>
+            <View style={styles.mannerModalHeader}>
+              <Ionicons name="dice" size={28} color={colors.primary} />
+              <Text style={styles.mannerModalTitle}>보드웨이 매너 주사위 안내</Text>
+            </View>
+            
+            <ScrollView style={styles.mannerModalBody} showsVerticalScrollIndicator={false}>
+              <Text style={styles.mannerIntroText}>
+                보드웨이의 매너 주사위는 매칭 참여자들끼리 평가한 평균 주사위 눈수를 바탕으로 계산되는 신뢰 지표입니다.
+              </Text>
+              
+              <View style={styles.mannerRuleRow}>
+                <Ionicons name="dice-outline" size={20} color={colors.primary} />
+                <View style={styles.mannerRuleTextWrap}>
+                  <Text style={styles.mannerRuleTitle}>주사위 범위</Text>
+                  <Text style={styles.mannerRuleDesc}>최소 1.0 ~ 최대 6.0 (6단계)</Text>
+                </View>
+              </View>
+
+              <View style={styles.mannerRuleRow}>
+                <Ionicons name="rocket-outline" size={20} color={colors.primary} />
+                <View style={styles.mannerRuleTextWrap}>
+                  <Text style={styles.mannerRuleTitle}>시작 주사위</Text>
+                  <Text style={styles.mannerRuleDesc}>신규 가입 시 기본 5.0에서 시작합니다.</Text>
+                </View>
+              </View>
+
+              <View style={styles.mannerRuleRow}>
+                <Ionicons name="shuffle-outline" size={20} color={colors.primary} />
+                <View style={styles.mannerRuleTextWrap}>
+                  <Text style={styles.mannerRuleTitle}>반영 방식</Text>
+                  <Text style={styles.mannerRuleDesc}>
+                    매칭 완료 후 멤버들로부터 받은 주사위 점수(1~6점)들의 산술 평균이 매너 주사위 점수로 자동 갱신됩니다.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.mannerRuleRow}>
+                <Ionicons name="ribbon-outline" size={20} color={colors.secondary} />
+                <View style={styles.mannerRuleTextWrap}>
+                  <Text style={styles.mannerRuleTitle}>굿 매너 배지</Text>
+                  <Text style={styles.mannerRuleDesc}>
+                    매너 주사위가 5.0 이상인 경우 '⭐ 굿 매너 유저' 배지가 부여되어 매칭 신뢰도가 대폭 상승합니다!
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={styles.mannerCloseBtn}
+              onPress={() => setMannerModalVisible(false)}
+            >
+              <Text style={styles.mannerCloseBtnText}>확인</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -392,5 +475,76 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: colors.textLight,
     fontWeight: '500',
+  },
+  modalOverlayCentered: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  mannerModalContent: {
+    width: '95%',
+    maxWidth: 400,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    ...commonStyles.shadow,
+  },
+  mannerModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingBottom: 16,
+    marginBottom: 16,
+  },
+  mannerModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  mannerModalBody: {
+    maxHeight: 300,
+  },
+  mannerIntroText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  mannerRuleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 16,
+  },
+  mannerRuleTextWrap: {
+    flex: 1,
+  },
+  mannerRuleTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  mannerRuleDesc: {
+    fontSize: 13,
+    color: colors.textLight,
+    lineHeight: 18,
+  },
+  mannerCloseBtn: {
+    backgroundColor: colors.primary,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  mannerCloseBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   }
 });

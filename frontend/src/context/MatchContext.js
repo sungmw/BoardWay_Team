@@ -9,7 +9,7 @@ export const MatchProvider = ({ children }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { token, logout, fetchUserInfo } = useContext(AuthContext);
+  const { token, logout, fetchUserInfo, loadNotifications } = useContext(AuthContext);
 
   const fetchMatches = async () => {
     setError(null);
@@ -56,6 +56,7 @@ export const MatchProvider = ({ children }) => {
 
       if (response.ok) {
         await fetchMatches();
+        if (loadNotifications) await loadNotifications();
         return { success: true };
       } else if (response.status === 401) {
         await logout();
@@ -81,6 +82,7 @@ export const MatchProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         await fetchMatches();
+        if (loadNotifications) await loadNotifications();
         return { success: true, message: data.message };
       } else if (response.status === 401) {
         await logout();
@@ -106,6 +108,7 @@ export const MatchProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json().catch(() => ({}));
         await fetchMatches();
+        if (loadNotifications) await loadNotifications();
         if (data.refunded && fetchUserInfo) await fetchUserInfo(token);
         return { success: true, refunded: data.refunded || 0 };
       } else if (response.status === 401) {

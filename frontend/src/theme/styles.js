@@ -23,6 +23,8 @@ export const commonStyles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
     borderColor: colors.border,
+    borderLeftWidth: 5,
+    borderLeftColor: colors.primary,
   },
   wayLineContainer: {
     flexDirection: 'row',

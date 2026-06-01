@@ -75,7 +75,8 @@ export default function MatchDetailScreen({ route, navigation }) {
     setIsJoining(true);
 
     const cost = 12000;
-    const pointResult = await usePoints(cost, `[${match.games.join(', ')}] 매치 참여 결제`);
+    const gamesLabel = match.is_flexible ? '자율 선택' : match.games.join(', ');
+    const pointResult = await usePoints(cost, `[${gamesLabel}] 매치 참여 결제`);
 
     if (!pointResult.success) {
       notify('오류', pointResult.message);
@@ -96,9 +97,19 @@ export default function MatchDetailScreen({ route, navigation }) {
   };
 
   const renderDice = (score) => {
-    const diceIcons = ['dice-one', 'dice-two', 'dice-three', 'dice-four', 'dice-five', 'dice-six'];
-    const iconName = diceIcons[Math.min(Math.max(score - 1, 0), 5)];
-    return <Ionicons name={iconName} size={24} color={colors.primary} />;
+    const rounded = Math.round(score);
+    return (
+      <View style={{ flexDirection: 'row', gap: 3 }}>
+        {[1, 2, 3, 4, 5, 6].map((num) => (
+          <Ionicons 
+            key={num} 
+            name={rounded >= num ? "dice" : "dice-outline"} 
+            size={18} 
+            color={rounded >= num ? colors.secondary : colors.border} 
+          />
+        ))}
+      </View>
+    );
   };
 
   const extractVideoId = (url) => {
@@ -108,7 +119,7 @@ export default function MatchDetailScreen({ route, navigation }) {
     return (match && match[2].length === 11) ? match[2] : '';
   };
 
-  const mapQuery = `${match.location.venue} ${match.location.branch}`;
+  const mapQuery = match.location.address;
 
   const matchStart = new Date(`${match.date}T${match.startTime}:00`);
   const now = new Date();
@@ -148,7 +159,7 @@ export default function MatchDetailScreen({ route, navigation }) {
         <View style={styles.gameSection}>
           <Text style={styles.matchDate}>{match.date} {match.startTime}</Text>
           <Text style={styles.matchTitle}>
-            {match.games.join(' ➔ ')}
+            {match.is_flexible ? '🎲 모여서 게임 선택 (자율 매칭)' : match.games.join(' ➔ ')}
           </Text>
           <View style={[styles.tagsContainer, { marginTop: 12 }]}>
             {match.tags.map((tag, index) => (
@@ -187,34 +198,49 @@ export default function MatchDetailScreen({ route, navigation }) {
           ))}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>룰 숙지 인증 📺</Text>
-          <Text style={styles.ruleSubText}>가장 바른 즐거움을 위해 아래 {match.games.length}가지 게임의 룰을 모두 숙지해주세요.</Text>
-          
-          <View style={styles.videoTabs}>
-            {match.games.map((game, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[styles.tabButton, activeVideoIndex === index && styles.tabButtonActive]}
-                onPress={() => setActiveVideoIndex(index)}
-              >
-                <Text style={[styles.tabText, activeVideoIndex === index && styles.tabTextActive]}>
-                  {game}
+        {match.is_flexible ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>룰 숙지 인증 📺</Text>
+            <View style={styles.flexibleNoticeBox}>
+              <Ionicons name="information-circle-outline" size={24} color="#9B59B6" style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.flexibleNoticeTitle}>자율 선택 매칭 안내</Text>
+                <Text style={styles.flexibleNoticeText}>
+                  이 매칭은 사전에 보드게임이 지정되어 있지 않습니다. 오프라인 모임 장소에서 만나 대화와 투표를 통해 플레이할 게임을 자유롭게 결정하며, 게임 룰은 현장에서 함께 확인합니다.
                 </Text>
-              </TouchableOpacity>
-            ))}
+              </View>
+            </View>
           </View>
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>룰 숙지 인증 📺</Text>
+            <Text style={styles.ruleSubText}>가장 바른 즐거움을 위해 아래 {match.games.length}가지 게임의 룰을 모두 숙지해주세요.</Text>
+            
+            <View style={styles.videoTabs}>
+              {match.games.map((game, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[styles.tabButton, activeVideoIndex === index && styles.tabButtonActive]}
+                  onPress={() => setActiveVideoIndex(index)}
+                >
+                  <Text style={[styles.tabText, activeVideoIndex === index && styles.tabTextActive]}>
+                    {game}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <View style={styles.videoContainer}>
-            <YoutubeEmbed
-              videoId={extractVideoId(match.ruleVideoUrls[activeVideoIndex])}
-              height={200}
-            />
+            <View style={styles.videoContainer}>
+              <YoutubeEmbed
+                videoId={extractVideoId(match.ruleVideoUrls[activeVideoIndex])}
+                height={200}
+              />
+            </View>
+            {extractVideoId(match.ruleVideoUrls[activeVideoIndex])
+              ? <Text style={styles.currentVideoLabel}>현재 영상: {match.games[activeVideoIndex]}</Text>
+              : <Text style={styles.currentVideoLabel}>이 매치에는 룰 영상이 등록되어 있지 않습니다.</Text>}
           </View>
-          {extractVideoId(match.ruleVideoUrls[activeVideoIndex])
-            ? <Text style={styles.currentVideoLabel}>현재 영상: {match.games[activeVideoIndex]}</Text>
-            : <Text style={styles.currentVideoLabel}>이 매치에는 룰 영상이 등록되어 있지 않습니다.</Text>}
-        </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -569,5 +595,25 @@ const styles = StyleSheet.create({
   cancelMatchBtn: {
     backgroundColor: colors.error,
     marginBottom: 12,
+  },
+  flexibleNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FDFBFF',
+    borderWidth: 1,
+    borderColor: '#E8DFFA',
+    borderRadius: 12,
+    padding: 16,
+  },
+  flexibleNoticeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#9B59B6',
+    marginBottom: 4,
+  },
+  flexibleNoticeText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
 });

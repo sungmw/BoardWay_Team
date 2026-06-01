@@ -29,7 +29,7 @@ export default function MatchReviewScreen({ route, navigation }) {
     const now = new Date();
 
     if (now > reviewDeadline) {
-      notify('리뷰 기간 만료', '매치 종료 후 30분이 경과하여 리뷰를 남길 수 없습니다. (매너 온도 및 리워드에 반영되지 않습니다)');
+      notify('리뷰 기간 만료', '매치 종료 후 30분이 경과하여 리뷰를 남길 수 없습니다. (매너 주사위 및 리워드에 반영되지 않습니다)');
       navigation.goBack();
       return;
     }
@@ -55,7 +55,7 @@ export default function MatchReviewScreen({ route, navigation }) {
     if (isUserHost) {
       notify('리뷰 완료', '리뷰를 남겨주셔서 감사합니다!\n모든 참여자의 리뷰가 완료되거나 제한시간이 지나면 방장 리워드가 정산됩니다.');
     } else {
-      notify('리뷰 완료', '리뷰를 남겨주셔서 감사합니다! 소중한 의견이 매너 온도에 반영됩니다.');
+      notify('리뷰 완료', '리뷰를 남겨주셔서 감사합니다! 소중한 의견이 매너 주사위에 반영됩니다.');
     }
     navigation.goBack();
   };
