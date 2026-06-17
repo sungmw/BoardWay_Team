@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -6,8 +6,7 @@ import { commonStyles } from '../theme/styles';
 import { AuthContext } from '../context/AuthContext';
 import { apiFetch } from '../utils/api';
 import { notify } from '../utils/dialog';
-
-const POLL_INTERVAL_MS = 5000;
+import { WS_URL } from '../config';
 
 export default function ChatRoomScreen({ route, navigation }) {
   const { match } = route.params;
@@ -16,9 +15,8 @@ export default function ChatRoomScreen({ route, navigation }) {
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const flatListRef = useRef();
-  const lastIdRef = useRef(0); // 폴링용 — 마지막으로 받은 메시지 id
+  const wsRef = useRef(null);
 
-  // 시간 표시용 (HH:MM)
   const formatTime = (iso) => {
     try {
       const d = new Date(iso);
@@ -26,38 +24,75 @@ export default function ChatRoomScreen({ route, navigation }) {
     } catch { return ''; }
   };
 
-  const fetchMessages = useCallback(async ({ initial = false } = {}) => {
-    if (!token) return;
-    try {
-      const url = initial
-        ? `/matches/${match.id}/messages`
-        : `/matches/${match.id}/messages?after_id=${lastIdRef.current}`;
-      const res = await apiFetch(url, { token });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (!Array.isArray(data) || data.length === 0) return;
+  const scrollToBottom = (animated = true) => {
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated }), 60);
+  };
 
-      // initial 이면 전체 교체, 아니면 append.
-      setMessages(prev => initial ? data : [...prev, ...data]);
-      lastIdRef.current = data[data.length - 1].id;
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: !initial }), 60);
-    } catch (e) {
-      // 폴링 실패는 조용히 무시 (다음 틱에 재시도).
-    }
+  // 기존 메시지 초기 로드 (REST)
+  useEffect(() => {
+    if (!token) return;
+    apiFetch(`/matches/${match.id}/messages`, { token })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setMessages(data);
+          scrollToBottom(false);
+        }
+      })
+      .catch(() => {});
   }, [match.id, token]);
 
-  // 초기 로드 + 폴링
+  // WebSocket 연결 — 새 메시지 실시간 수신
   useEffect(() => {
-    fetchMessages({ initial: true });
-    const id = setInterval(() => fetchMessages(), POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [fetchMessages]);
+    if (!token) return;
+    const wsUrl = `${WS_URL}/ws/matches/${match.id}/chat?token=${token}`;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.error) return;
+        setMessages(prev => {
+          // 내가 보낸 메시지가 낙관적으로 이미 추가됐으면 중복 방지
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+        scrollToBottom();
+      } catch {}
+    };
+
+    ws.onerror = () => {};
+
+    // 연결 끊기면 3초 후 자동 재연결
+    ws.onclose = () => {
+      setTimeout(() => {
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+        }
+      }, 3000);
+    };
+
+    return () => {
+      wsRef.current = null;
+      ws.close();
+    };
+  }, [match.id, token]);
 
   const handleSend = async () => {
     const content = message.trim();
     if (content === '' || sending) return;
     setSending(true);
     setMessage('');
+
+    // WebSocket으로 전송
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ content }));
+      setSending(false);
+      return;
+    }
+
+    // WS 연결 없으면 REST 폴백
     try {
       const res = await apiFetch(`/matches/${match.id}/messages`, {
         method: 'POST',
@@ -67,13 +102,12 @@ export default function ChatRoomScreen({ route, navigation }) {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         notify('전송 실패', data.detail || '메시지 전송에 실패했습니다.');
-        setMessage(content); // 입력값 복원
+        setMessage(content);
         return;
       }
       const created = await res.json();
       setMessages(prev => [...prev, created]);
-      lastIdRef.current = created.id;
-      setTimeout(() => flatListRef.current?.scrollToEnd(), 60);
+      scrollToBottom();
     } catch (e) {
       notify('오류', '서버와 연결할 수 없습니다.');
       setMessage(content);

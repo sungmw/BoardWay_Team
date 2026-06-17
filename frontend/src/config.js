@@ -22,3 +22,6 @@ function inferApiUrl() {
 }
 
 export const API_URL = inferApiUrl();
+
+// WebSocket URL — https → wss, http → ws 자동 변환
+export const WS_URL = API_URL.replace(/^http/, 'ws');

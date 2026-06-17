@@ -1,10 +1,10 @@
 import os
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
 from jose import JWTError, jwt
 
 import models, schemas, crud
@@ -411,6 +411,73 @@ def create_match_message_endpoint(
     if result == "FORBIDDEN":
         raise HTTPException(status_code=403, detail="이 매치에 참여한 사용자만 채팅을 보낼 수 있습니다.")
     return result
+
+
+# WebSocket 연결 관리자 — 매치별로 연결된 클라이언트 목록 유지
+class ConnectionManager:
+    def __init__(self):
+        self.rooms: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, match_id: str):
+        await websocket.accept()
+        self.rooms.setdefault(match_id, []).append(websocket)
+
+    def disconnect(self, websocket: WebSocket, match_id: str):
+        if match_id in self.rooms:
+            self.rooms[match_id].discard(websocket) if hasattr(self.rooms[match_id], 'discard') else None
+            try:
+                self.rooms[match_id].remove(websocket)
+            except ValueError:
+                pass
+
+    async def broadcast(self, match_id: str, data: dict):
+        for ws in list(self.rooms.get(match_id, [])):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                pass
+
+ws_manager = ConnectionManager()
+
+
+@app.websocket("/ws/matches/{match_id}/chat")
+async def websocket_chat(websocket: WebSocket, match_id: str, token: str, db: Session = Depends(get_db)):
+    # 토큰으로 유저 인증
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            await websocket.close(code=4001)
+            return
+        user = crud.get_user_by_email(db, email)
+        if not user:
+            await websocket.close(code=4001)
+            return
+    except JWTError:
+        await websocket.close(code=4001)
+        return
+
+    await ws_manager.connect(websocket, match_id)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            content = (data.get("content") or "").strip()
+            if not content:
+                continue
+            result = crud.create_match_message(db, match_id, user, content)
+            if isinstance(result, str):  # NOT_FOUND / FORBIDDEN
+                await websocket.send_json({"error": result})
+                continue
+            msg_dict = {
+                "id": result.id,
+                "sender_nickname": result.sender_nickname,
+                "content": result.content,
+                "created_at": result.created_at.isoformat(),
+            }
+            await ws_manager.broadcast(match_id, msg_dict)
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket, match_id)
+
 
 if __name__ == "__main__":
     import uvicorn
