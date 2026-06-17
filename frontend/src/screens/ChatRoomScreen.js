@@ -45,9 +45,14 @@ export default function ChatRoomScreen({ route, navigation }) {
   // WebSocket 연결 — 새 메시지 실시간 수신
   useEffect(() => {
     if (!token) return;
-    const wsUrl = `${WS_URL}/ws/matches/${match.id}/chat?token=${token}`;
+    const wsUrl = `${WS_URL}/ws/matches/${match.id}/chat`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+
+    // 연결되면 즉시 토큰 전송 (URL 노출 방지)
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ token }));
+    };
 
     ws.onmessage = (e) => {
       try {

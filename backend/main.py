@@ -441,9 +441,12 @@ ws_manager = ConnectionManager()
 
 
 @app.websocket("/ws/matches/{match_id}/chat")
-async def websocket_chat(websocket: WebSocket, match_id: str, token: str, db: Session = Depends(get_db)):
-    # 토큰으로 유저 인증
+async def websocket_chat(websocket: WebSocket, match_id: str, db: Session = Depends(get_db)):
+    # 토큰은 URL 쿼리 대신 연결 직후 첫 번째 메시지로 수신 (URL 로그 노출 방지)
+    await websocket.accept()
     try:
+        auth_data = await websocket.receive_json()
+        token = auth_data.get("token", "")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
         if not email:
@@ -453,11 +456,21 @@ async def websocket_chat(websocket: WebSocket, match_id: str, token: str, db: Se
         if not user:
             await websocket.close(code=4001)
             return
-    except JWTError:
+    except (JWTError, Exception):
         await websocket.close(code=4001)
         return
 
-    await ws_manager.connect(websocket, match_id)
+    # 참여자 권한 검증 — 비참여자 연결 차단 (IDOR 방지)
+    match = crud.get_match_by_match_id(db, match_id)
+    if not match:
+        await websocket.close(code=4004)
+        return
+    from crud import _is_match_participant
+    if not _is_match_participant(db, match, user.nickname):
+        await websocket.close(code=4003)
+        return
+
+    ws_manager.rooms.setdefault(match_id, []).append(websocket)
     try:
         while True:
             data = await websocket.receive_json()
@@ -465,7 +478,7 @@ async def websocket_chat(websocket: WebSocket, match_id: str, token: str, db: Se
             if not content:
                 continue
             result = crud.create_match_message(db, match_id, user, content)
-            if isinstance(result, str):  # NOT_FOUND / FORBIDDEN
+            if isinstance(result, str):
                 await websocket.send_json({"error": result})
                 continue
             msg_dict = {
