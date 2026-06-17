@@ -24,11 +24,11 @@ def upgrade() -> None:
     # 기존 row 가 있어서 nullable=False + server_default 필수 (autogenerate 가 빠뜨림).
     op.add_column(
         'match_participants',
-        sa.Column('settled', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+        sa.Column('settled', sa.Boolean(), nullable=False, server_default=sa.text('false')),
     )
     op.add_column(
         'matches',
-        sa.Column('host_settled', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+        sa.Column('host_settled', sa.Boolean(), nullable=False, server_default=sa.text('false')),
     )
     # ### end Alembic commands ###
 
