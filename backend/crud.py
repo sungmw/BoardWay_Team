@@ -203,7 +203,11 @@ def add_user_points(db: Session, nickname: str, delta: int, description: str = "
     if not user:
         return None
 
-    user.points = (user.points or 0) + delta
+    current = user.points or 0
+    if delta < 0 and current + delta < 0:
+        return False  # 잔액 부족 신호 — caller가 400 처리
+
+    user.points = current + delta
 
     history = models.PointHistory(
         user_id=user.id,

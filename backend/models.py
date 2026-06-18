@@ -65,6 +65,7 @@ class Game(Base):
     name = Column(String)
     players = Column(String)
     difficulty = Column(String)
+    genre = Column(String, nullable=True)
     description = Column(String)
     ruleUrl = Column(String)
     image = Column(String)

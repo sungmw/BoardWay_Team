@@ -149,6 +149,7 @@ class GameBase(BaseModel):
     name: str
     players: str
     difficulty: str
+    genre: Optional[str] = None
     description: str
     ruleUrl: str
     image: str

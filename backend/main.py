@@ -218,6 +218,7 @@ def get_games(request: Request, db: Session = Depends(get_db)):
             "name": g.name,
             "players": g.players,
             "difficulty": g.difficulty,
+            "genre": g.genre,
             "description": g.description,
             "ruleUrl": g.ruleUrl,
             "image": public_url(request, g.image)
@@ -269,7 +270,9 @@ def adjust_my_points(
     updated = crud.add_user_points(
         db, current_user.nickname, payload.delta, payload.description
     )
-    if not updated:
+    if updated is False:
+        raise HTTPException(status_code=400, detail="포인트 잔액이 부족합니다.")
+    if updated is None:
         raise HTTPException(status_code=404, detail="User not found")
 
     # 일반적인 포인트 충전/사용 시에만 알림 발송 (매칭 결제/참여취소 환불 등은 별도 알림 존재하므로 제외)
