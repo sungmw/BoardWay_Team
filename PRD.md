@@ -118,7 +118,7 @@
 |---|------|------|
 | 1-1 | pytest 백엔드 테스트 24개 | ✅ 완료 |
 | 1-2 | 게임 장르 카테고리화 + 37종으로 확장 (프랜차이즈 분석) | ✅ 완료 |
-| 1-3 | EAS Build → Android APK | ⏳ Android Studio 설치 중 |
+| 1-3 | EAS Build → Android APK | 🔜 Android Studio 설치 완료, EAS Build 진행 예정 |
 
 ### Phase 2 — 기능 확장
 | # | 작업 | 이유 |
@@ -151,6 +151,6 @@
 
 ## 9. 다음 작업
 
-**지금 진행 중**: Android Studio 설치 완료 후 EAS Build → Android APK (Phase 1-3)
+**지금 진행 중**: EAS Build → Android APK (Phase 1-3) — Android Studio 설치 완료, 다음 세션에서 EAS CLI 설정 및 빌드 진행
 
 **그 다음**: Phase 2 — PG 결제 연동 (포트원) 또는 푸시 알림
