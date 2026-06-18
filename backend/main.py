@@ -114,7 +114,12 @@ def public_url(request: Request, path_or_url: str):
         return path_or_url
     if path_or_url.startswith(("http://", "https://")):
         return path_or_url
-    return str(request.base_url).rstrip("/") + "/" + path_or_url.lstrip("/")
+    base = str(request.base_url).rstrip("/")
+    # Railway 등 리버스 프록시 뒤에서는 X-Forwarded-Proto가 실제 외부 프로토콜(https)을 알려줌
+    proto = request.headers.get("x-forwarded-proto")
+    if proto:
+        base = proto + base[base.index("://"):]
+    return base + "/" + path_or_url.lstrip("/")
 
 @app.get("/")
 def read_root():
