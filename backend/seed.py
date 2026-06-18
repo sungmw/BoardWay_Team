@@ -132,19 +132,37 @@ def seed_db(force_reset=False):
         db.commit()
         print(f"운영진 계정 생성: {admin_email} / admin123")
 
-    if db.query(models.Game).first():
-        print("데이터베이스에 이미 데이터가 존재합니다. 시딩을 건너뜁니다.")
+    # 게임은 upsert — 기존 row가 있으면 image·genre 등을 현재 GAMES_DATA로 업데이트,
+    # 없으면 새로 삽입. 매치·유저 데이터는 건드리지 않음.
+    print("게임 데이터 upsert 중...")
+    existing_game_ids = {g.game_id for g in db.query(models.Game.game_id).all()}
+    upsert_count = 0
+    for g in GAMES_DATA:
+        existing = db.query(models.Game).filter(models.Game.game_id == g["id"]).first()
+        if existing:
+            existing.name = g["name"]
+            existing.players = g["players"]
+            existing.difficulty = g["difficulty"]
+            existing.genre = g.get("genre")
+            existing.description = g["description"]
+            existing.ruleUrl = g["ruleUrl"]
+            existing.image = g["image"]
+        else:
+            db.add(models.Game(
+                game_id=g["id"], name=g["name"], players=g["players"],
+                difficulty=g["difficulty"], genre=g.get("genre"),
+                description=g["description"], ruleUrl=g["ruleUrl"], image=g["image"]
+            ))
+        upsert_count += 1
+    db.commit()
+    print(f"게임 upsert 완료: {upsert_count}개")
+
+    if db.query(models.Match).first():
+        print("매치/유저 데이터가 이미 존재합니다. 매치 시딩을 건너뜁니다.")
         db.close()
         return
 
-    print("초기 데이터 시딩을 시작합니다...")
-
-    for g in GAMES_DATA:
-        db.add(models.Game(
-            game_id=g["id"], name=g["name"], players=g["players"],
-            difficulty=g["difficulty"], genre=g.get("genre"),
-            description=g["description"], ruleUrl=g["ruleUrl"], image=g["image"]
-        ))
+    print("매치·유저 초기 데이터 시딩을 시작합니다...")
 
     for m in MATCHES_DATA:
         resolved_date = _resolve_date(m["date"])
