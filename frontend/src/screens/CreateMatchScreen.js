@@ -9,6 +9,8 @@ import { apiFetch } from '../utils/api';
 import { MatchContext } from '../context/MatchContext';
 import { AuthContext } from '../context/AuthContext';
 
+const GENRE_TABS = ['전체', '전략', '파티', '마피아', '추리', '카드', '타일', '고전', '단어'];
+
 const DIFFICULTIES = ['쉬움', '보통', '어려움', '매우 어려움'];
 const TAG_OPTIONS = ['입문', '전략', '파티', '마피아', '심리전', '추리', '두뇌', '힐링', '협력', '고전'];
 const TIME_SLOTS = ['13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
@@ -57,6 +59,7 @@ export default function CreateMatchScreen({ navigation }) {
 
   const [dbGames, setDbGames] = useState([]);
   const [selectedGames, setSelectedGames] = useState([]);
+  const [gameGenreFilter, setGameGenreFilter] = useState('전체');
   const [difficulty, setDifficulty] = useState('보통');
 
   useEffect(() => {
@@ -237,40 +240,82 @@ export default function CreateMatchScreen({ navigation }) {
 
         {!isFlexible && (
           <>
-            <Text style={styles.label}>게임 선택 (최대 3개)</Text>
+            <Text style={styles.label}>
+              게임 선택 (최대 3개)
+              <Text style={styles.labelCount}> {selectedGames.length}/3</Text>
+            </Text>
+
+            {/* 선택된 게임 미리보기 */}
+            {selectedGames.length > 0 && (
+              <View style={styles.selectedPreview}>
+                {selectedGames.map((name) => (
+                  <TouchableOpacity
+                    key={name}
+                    style={styles.selectedChip}
+                    onPress={() => handleGameToggle(name)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.selectedChipText}>{name}</Text>
+                    <Ionicons name="close" size={12} color={colors.primary} style={{ marginLeft: 4 }} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* 장르 탭 */}
+            {dbGames.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.genreTabsRow}
+              >
+                {GENRE_TABS.map((g) => (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.genreTab, gameGenreFilter === g && styles.genreTabActive]}
+                    onPress={() => setGameGenreFilter(g)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.genreTabText, gameGenreFilter === g && styles.genreTabTextActive]}>{g}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
             {dbGames.length === 0 ? (
               <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
             ) : (
               <View style={styles.gamesSelectGrid}>
-                {dbGames.map((game) => {
-                  const isSelected = selectedGames.includes(game.name);
-                  return (
-                    <TouchableOpacity
-                      key={game.id}
-                      style={[
-                        styles.gameSelectCard,
-                        isSelected && styles.gameSelectCardActive
-                      ]}
-                      onPress={() => handleGameToggle(game.name)}
-                      activeOpacity={0.7}
-                    >
-                      {isSelected && (
-                        <View style={styles.selectedCheckBadge}>
-                          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-                        </View>
-                      )}
-                      {game.image && (
-                        <Image source={{ uri: game.image }} style={styles.gameSelectImage} />
-                      )}
-                      <Text 
-                        style={[styles.gameSelectName, isSelected && styles.gameSelectNameActive]}
-                        numberOfLines={2}
+                {dbGames
+                  .filter((game) =>
+                    gameGenreFilter === '전체' || (game.genre && game.genre.includes(gameGenreFilter))
+                  )
+                  .map((game) => {
+                    const isSelected = selectedGames.includes(game.name);
+                    return (
+                      <TouchableOpacity
+                        key={game.id}
+                        style={[styles.gameSelectCard, isSelected && styles.gameSelectCardActive]}
+                        onPress={() => handleGameToggle(game.name)}
+                        activeOpacity={0.7}
                       >
-                        {game.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                        {isSelected && (
+                          <View style={styles.selectedCheckBadge}>
+                            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                          </View>
+                        )}
+                        {game.image && (
+                          <Image source={{ uri: game.image }} style={styles.gameSelectImage} />
+                        )}
+                        <Text
+                          style={[styles.gameSelectName, isSelected && styles.gameSelectNameActive]}
+                          numberOfLines={2}
+                        >
+                          {game.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
               </View>
             )}
           </>
@@ -698,11 +743,62 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
+  labelCount: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: colors.textLight,
+  },
+  selectedPreview: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  selectedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  selectedChipText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  genreTabsRow: {
+    gap: 8,
+    paddingBottom: 10,
+    paddingTop: 2,
+  },
+  genreTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+    backgroundColor: '#F1F2F6',
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+  },
+  genreTabActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  genreTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#636E72',
+  },
+  genreTabTextActive: {
+    color: '#FFFFFF',
+  },
   gamesSelectGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 8,
+    marginTop: 4,
   },
   gameSelectCard: {
     width: '23%',
