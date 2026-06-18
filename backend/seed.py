@@ -51,6 +51,22 @@ GAMES_DATA = [
     {"id": "g20", "name": "레지스탕스 쿠", "players": "2-6인",  "difficulty": "쉬움",      "genre": "마피아 / 블러핑",         "description": "쿠데타를 일으켜 다른 플레이어를 제거하라! 블러핑의 정점",                  "ruleUrl": "https://youtu.be/7j7zkNsPiPQ?si=jt4T5cBmvILqs1NG",    "image": "/images/g20.png"},
     {"id": "g21", "name": "패치워크",      "players": "2인 전용","difficulty": "쉬움",      "genre": "타일 배치 / 2인 전용",   "description": "퀼트 조각을 맞춰 이불을 완성하라! 2인 최강 타일 배치 퍼즐 게임",            "ruleUrl": "https://youtu.be/PJ0BydwalAY?si=0UASKaBlu6CDc9ov",    "image": "/images/g21.png"},
     {"id": "g22", "name": "러브레터",      "players": "2-4인",  "difficulty": "쉬움",      "genre": "카드 / 심리전",           "description": "단 16장의 카드로 공주에게 편지를 전달하라! 단순하지만 깊이 있는 심리 게임",  "ruleUrl": "https://youtu.be/QJh1rQortrc?si=UyEwgLJYViNHTtdW",    "image": "/images/g22.png"},
+    # ── 프랜차이즈 분석 15종 (레드버튼·히어로·체크메이트 등 공통 인기작) ──
+    {"id": "g23", "name": "바퀴벌레 포커 로얄", "players": "2-6인",  "difficulty": "쉬움",  "genre": "마피아 / 블러핑",         "description": "카드를 내밀며 거짓말을 해라! 누가 가장 많이 속을까? 블러핑 파티 게임의 고전",  "ruleUrl": "", "image": "/images/g23.png"},
+    {"id": "g24", "name": "도블",              "players": "2-8인",  "difficulty": "쉬움",  "genre": "파티 / 스피드",           "description": "두 카드 사이의 공통 그림을 가장 빨리 외쳐라! 모든 연령대가 즐기는 스피드 게임", "ruleUrl": "", "image": "/images/g24.png"},
+    {"id": "g25", "name": "우노",              "players": "2-10인", "difficulty": "쉬움",  "genre": "카드 / 파티",             "description": "손에 쥔 카드를 먼저 다 내면 UNO! 전 세계가 사랑하는 국민 카드 게임",       "ruleUrl": "", "image": "/images/g25.png"},
+    {"id": "g26", "name": "노땡스",            "players": "3-7인",  "difficulty": "쉬움",  "genre": "카드 / 심리전",           "description": "숫자 카드를 거부하면 칩을 받는다. 카드를 가장 적게 모아라! 간단하지만 깊은 심리전", "ruleUrl": "", "image": "/images/g26.png"},
+    {"id": "g27", "name": "사보타지",          "players": "3-10인", "difficulty": "보통",  "genre": "마피아 / 협력",           "description": "광부들이 금을 캐는 동안 방해꾼이 몰래 훼방을 놓는다! 내 편과 적을 찾아라",   "ruleUrl": "", "image": "/images/g27.png"},
+    {"id": "g28", "name": "익스플로딩 키튼",   "players": "2-5인",  "difficulty": "쉬움",  "genre": "카드 / 파티",             "description": "폭발하는 고양이 카드를 피하라! 전략과 운이 어우러진 초간단 카드 생존 게임",   "ruleUrl": "", "image": "/images/g28.png"},
+    {"id": "g29", "name": "스시고",            "players": "2-5인",  "difficulty": "쉬움",  "genre": "카드 / 전략",             "description": "회전 초밥처럼 카드를 돌리며 최고의 메뉴를 완성하라! 빠르고 귀여운 드래프팅 게임", "ruleUrl": "", "image": "/images/g29.png"},
+    {"id": "g30", "name": "카르카손",          "players": "2-5인",  "difficulty": "보통",  "genre": "전략 / 타일 배치",        "description": "타일을 하나씩 놓아 중세 도시를 만들어라! 초보자도 쉽게 배우는 전략 타일 게임", "ruleUrl": "", "image": "/images/g30.png"},
+    {"id": "g31", "name": "킹오브도쿄",        "players": "2-6인",  "difficulty": "보통",  "genre": "전략 / 주사위",           "description": "도쿄를 차지한 괴물 왕이 돼라! 주사위를 굴려 공격하고 에너지를 모으는 전략 게임", "ruleUrl": "", "image": "/images/g31.png"},
+    {"id": "g32", "name": "팬데믹",            "players": "2-4인",  "difficulty": "보통",  "genre": "전략 / 협력",             "description": "전 세계에 퍼진 바이러스를 막아라! 팀원과 함께하는 협력 전략 게임의 명작",      "ruleUrl": "", "image": "/images/g32.png"},
+    {"id": "g33", "name": "블러프",            "players": "2-6인",  "difficulty": "쉬움",  "genre": "마피아 / 주사위",         "description": "주사위를 굴리고 눈 수를 선언하라! 상대방의 거짓말을 잡아내는 블러핑 게임",     "ruleUrl": "", "image": "/images/g33.png"},
+    {"id": "g34", "name": "보난자",            "players": "2-7인",  "difficulty": "쉬움",  "genre": "카드 / 협상",             "description": "콩 농사꾼이 돼서 거래로 부자가 돼라! 협상과 전략이 넘치는 콩 카드 게임",       "ruleUrl": "", "image": "/images/g34.png"},
+    {"id": "g35", "name": "티켓 투 라이드",    "players": "2-5인",  "difficulty": "보통",  "genre": "전략 / 노선",             "description": "기차 노선을 연결하라! 지도 위에서 펼치는 스마트한 전략 보드게임",              "ruleUrl": "", "image": "/images/g35.png"},
+    {"id": "g36", "name": "7원더스",           "players": "3-7인",  "difficulty": "보통",  "genre": "전략 / 드래프팅",         "description": "고대 7대 불가사의 중 하나를 이끌어라! 카드 드래프팅으로 문명을 발전시키는 전략 게임", "ruleUrl": "", "image": "/images/g36.png"},
+    {"id": "g37", "name": "우봉고",            "players": "2-4인",  "difficulty": "쉬움",  "genre": "파티 / 퍼즐",             "description": "주어진 퍼즐 조각을 가장 빨리 맞춰라! 머리를 쓰는 스피드 퍼즐 게임",            "ruleUrl": "", "image": "/images/g37.png"},
 ]
 
 MATCHES_DATA = [

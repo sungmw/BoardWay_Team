@@ -28,11 +28,15 @@ export default function GameDetailScreen({ route, navigation }) {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.videoBanner}>
-          <Ionicons name="logo-youtube" size={40} color="#FF0000" />
+          <Ionicons name="logo-youtube" size={40} color={game.ruleUrl ? "#FF0000" : "#B2BEC3"} />
           <Text style={styles.videoBannerText}>게임 룰이 궁금하신가요?</Text>
-          <TouchableOpacity style={styles.playButton} onPress={handlePlayVideo}>
-            <Text style={styles.playButtonText}>유튜브에서 영상 보기</Text>
-          </TouchableOpacity>
+          {game.ruleUrl ? (
+            <TouchableOpacity style={styles.playButton} onPress={handlePlayVideo}>
+              <Text style={styles.playButtonText}>유튜브에서 영상 보기</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.noVideoText}>영상 준비 중입니다</Text>
+          )}
         </View>
 
         <View style={styles.infoSection}>
@@ -119,6 +123,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  noVideoText: {
+    color: '#B2BEC3',
+    fontSize: 14,
+    marginTop: 8,
   },
   infoSection: {
     padding: 24,
