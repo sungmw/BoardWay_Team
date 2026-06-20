@@ -370,15 +370,20 @@ def verify_payment(
     if paid_amount != req.amount:
         raise HTTPException(status_code=400, detail="결제 금액 불일치")
 
-    # 4. 소유자 검증 — paymentId 형식(BOARDWAY-{user_id}-{ts})으로 확인
-    # PortOne이 customerId를 보존하지 않는 경우에도 안전하게 동작
-    try:
-        parts = req.payment_id.split("-")
-        pid_user_id = parts[1]
-    except (IndexError, AttributeError):
-        raise HTTPException(status_code=400, detail="잘못된 결제 ID 형식")
-    if pid_user_id != str(current_user.id):
-        raise HTTPException(status_code=403, detail="결제 소유자 불일치")
+    # 4. 소유자 검증 — PortOne이 반환한 customerId 우선, paymentId 형식은 보조
+    customer_id = str((payment.get("customer") or {}).get("customerId") or "")
+    if customer_id:
+        # PortOne이 customerId를 저장한 경우: 서버 측 증거로 검증
+        if customer_id != str(current_user.id):
+            raise HTTPException(status_code=403, detail="결제 소유자 불일치")
+    else:
+        # customerId 없는 경우(테스트 채널 등): paymentId 형식으로 보조 검증
+        try:
+            pid_user_id = req.payment_id.split("-")[1]
+        except (IndexError, AttributeError):
+            raise HTTPException(status_code=400, detail="잘못된 결제 ID 형식")
+        if pid_user_id != str(current_user.id):
+            raise HTTPException(status_code=403, detail="결제 소유자 불일치")
 
     # 5. 재사용(replay) 방지 — payment_id UNIQUE 제약으로 원자적 삽입
     # ConsumedPayment를 세션에 추가하면 add_user_points의 db.commit() 시 함께 원자적으로 INSERT됨.
