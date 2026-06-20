@@ -184,8 +184,8 @@ export default function DiscoveryScreen({ navigation }) {
     );
   };
 
-  return (
-    <SafeAreaView style={commonStyles.container}>
+  const ListHeader = () => (
+    <>
       <View style={styles.headerContainer}>
         <View style={styles.headerTextWrap}>
           <View style={styles.headerTopRow}>
@@ -236,48 +236,38 @@ export default function DiscoveryScreen({ navigation }) {
       </View>
 
       <View style={styles.filterSection}>
-        <TouchableOpacity 
-          style={styles.filterDropdownBtn} 
-          onPress={() => setActiveModal('genre')}
-        >
+        <TouchableOpacity style={styles.filterDropdownBtn} onPress={() => setActiveModal('genre')}>
           <Text style={styles.filterBtnLabel}>장르 ▾</Text>
           <Text style={styles.filterBtnValue} numberOfLines={1}>{activeGenre}</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.filterDropdownBtn} 
-          onPress={() => setActiveModal('location')}
-        >
+        <TouchableOpacity style={styles.filterDropdownBtn} onPress={() => setActiveModal('location')}>
           <Text style={styles.filterBtnLabel}>장소 ▾</Text>
           <Text style={styles.filterBtnValue} numberOfLines={1}>{activeLocation}</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.filterDropdownBtn} 
-          onPress={() => setActiveModal('time')}
-        >
+        <TouchableOpacity style={styles.filterDropdownBtn} onPress={() => setActiveModal('time')}>
           <Text style={styles.filterBtnLabel}>시간 ▾</Text>
           <Text style={styles.filterBtnValue} numberOfLines={1}>{activeTime}</Text>
         </TouchableOpacity>
       </View>
+    </>
+  );
 
-      <View style={styles.listWrapper}>
-        {filteredMatches.length === 0 ? (
+  return (
+    <SafeAreaView style={commonStyles.container}>
+      <FlatList
+        data={filteredMatches}
+        renderItem={renderMatchCard}
+        keyExtractor={item => item.id}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>해당 날짜와 조건에 맞는 매치가 없습니다.</Text>
             <Text style={styles.emptySubText}>다른 날짜를 선택해보세요!</Text>
           </View>
-        ) : (
-          <FlatList
-            data={filteredMatches}
-            renderItem={renderMatchCard}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            style={{ flex: 1 }}
-          />
-        )}
-      </View>
+        }
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
 
       {/* 동적 Bottom Sheet 모달 */}
       <Modal
@@ -485,10 +475,6 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: '#FFFFFF',
-  },
-  listWrapper: {
-    flex: 1,
-    overflow: 'hidden',
   },
   filterSection: {
     flexDirection: 'row',
