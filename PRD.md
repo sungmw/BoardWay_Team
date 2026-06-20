@@ -100,6 +100,8 @@
 - 게임 도감 **37종** + 장르 탭 필터 UI (프랜차이즈 분석 기반)
 - **Android APK** — EAS Build 완료, 에뮬레이터 + 실기기 테스트 완료
 - **Discovery 화면 헤더 스크롤 UX 개선** — 제목·캘린더·필터가 콘텐츠와 함께 자연스럽게 스크롤되도록 수정 (sticky 고정 해제)
+- **프론트 코드 클린업** — 미사용 import/스타일/함수/dead 로직 제거, 401 핸들러 버그 수정
+- **로그인/회원가입 엔터키 지원** — 필드 간 포커스 이동 + 마지막 필드 엔터로 요청 전송
 
 ### ⚠️ 남은 과제
 1. **이미지 파일** — Railway 재시작 시 업로드 이미지 유실 가능 (현재는 git 포함 정적 이미지라 실용상 문제 없음. 유저 업로드 생기면 S3/Cloudinary 필요)
@@ -181,7 +183,8 @@ git push mine main     # Vercel 자동 배포 트리거
 ### 안드로이드 배포
 ```bash
 cd frontend
-eas build --platform android --non-interactive
+eas build --platform android --non-interactive          # AAB (Play Store용)
+eas build --platform android --profile preview --non-interactive  # APK (직접 설치용)
 ```
 
 ---
@@ -191,7 +194,6 @@ eas build --platform android --non-interactive
 **Phase 1, 2 주요 항목 완료.** Phase 3(출시 준비) 또는 추가 기능으로 진입 가능.
 
 **다음 후보:**
-- **코드 클린업** — 비효율적이거나 의미 없는 코드/파일 제거 (레거시 AsyncStorage 잔재, 미사용 import, dead 분기 등)
 - 푸시 알림 (Phase 2-2) — 매치 알림을 앱 밖에서도 받기
 - 결제 실모드 전환 — 사업자등록 후 PortOne 실모드 채널 발급
 - iOS 빌드 — Apple 개발자 계정 필요

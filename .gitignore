@@ -35,3 +35,8 @@ CLAUDE.md
 # Project specific
 extracted_texts.txt
 backend/test_file.txt
+
+# Tool-generated directories
+.playwright-mcp/
+.understand-anything/
+.vercel/
