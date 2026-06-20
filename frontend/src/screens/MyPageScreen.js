@@ -24,20 +24,8 @@ export default function MyPageScreen({ navigation }) {
   };
 
   const handleRecharge = (amount) => {
-    confirmAction(
-      "포인트 충전",
-      `${amount.toLocaleString()}원을 결제하시겠습니까?`,
-      async () => {
-        const ok = await rechargePoints(amount);
-        setRechargeModalVisible(false);
-        if (ok) {
-          notify("충전 완료", `${amount.toLocaleString()} 포인트가 충전되었습니다.`);
-        } else {
-          notify("충전 실패", "서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
-        }
-      },
-      { confirmText: "결제하기" }
-    );
+    setRechargeModalVisible(false);
+    navigation.navigate('PaymentWebView', { amount });
   };
 
   // 주사위 아이콘 결정 함수 — Ionicons 이름은 숫자가 아니라 영어 단어

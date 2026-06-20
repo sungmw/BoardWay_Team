@@ -21,11 +21,17 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/slogan_white.png",
         "backgroundColor": "#1A2A3A"
-      }
+      },
+      "package": "com.boardwayteam.boardway"
     },
     "web": {
       "favicon": "./assets/slogan_white.png",
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8d02ef78-7793-45cb-8107-80fb8b3b389d"
+      }
     }
   }
 }

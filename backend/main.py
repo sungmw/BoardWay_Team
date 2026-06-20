@@ -339,6 +339,55 @@ def my_reviewed_match_ids(
     return crud.get_reviewer_match_business_ids(db, current_user.id)
 
 
+@app.post("/payments/verify", response_model=schemas.UserResponse)
+def verify_payment(
+    req: schemas.PaymentVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    from sqlalchemy.exc import IntegrityError
+    import requests as http_requests
+
+    # 1. PortOne API로 결제 정보 조회
+    secret = os.getenv("PORTONE_SECRET", "")
+    resp = http_requests.get(
+        f"https://api.portone.io/payments/{req.payment_id}",
+        headers={"Authorization": f"PortOne {secret}"},
+        timeout=10,
+    )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=400, detail="결제 조회 실패")
+    payment = resp.json()
+
+    # 2. 결제 상태 검증
+    if payment.get("status") != "PAID":
+        raise HTTPException(status_code=400, detail="결제 미완료")
+
+    # 3. 금액 검증
+    paid_amount = payment.get("amount", {}).get("total", 0)
+    if paid_amount != req.amount:
+        raise HTTPException(status_code=400, detail="결제 금액 불일치")
+
+    # 4. 소유자 검증 — PortOne이 저장한 customerId와 현재 사용자 일치 확인
+    customer_id = str(payment.get("customer", {}).get("customerId", ""))
+    if customer_id != str(current_user.id):
+        raise HTTPException(status_code=403, detail="결제 소유자 불일치")
+
+    # 5. 재사용(replay) 방지 — payment_id UNIQUE 제약으로 원자적 삽입
+    # ConsumedPayment를 세션에 추가하면 add_user_points의 db.commit() 시 함께 원자적으로 INSERT됨.
+    # duplicate payment_id면 IntegrityError가 commit 시점에 발생 → 포인트 적립도 같이 롤백.
+    try:
+        db.add(models.ConsumedPayment(
+            payment_id=req.payment_id,
+            user_id=current_user.id,
+            amount=req.amount,
+        ))
+        return crud.add_user_points(db, current_user.nickname, req.amount, f"포인트 충전 ({req.amount:,}원)")
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="이미 처리된 결제입니다.")
+
+
 @app.post("/matches/{match_id}/cancel", response_model=schemas.CancelResponse)
 def cancel_match_endpoint(
     match_id: str,

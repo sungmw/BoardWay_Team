@@ -144,6 +144,10 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[EmailStr] = None
 
+class PaymentVerifyRequest(BaseModel):
+    payment_id: str
+    amount: int
+
 class GameBase(BaseModel):
     id: str
     name: str

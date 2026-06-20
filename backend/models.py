@@ -120,6 +120,15 @@ class Notification(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class ConsumedPayment(Base):
+    __tablename__ = "consumed_payments"
+
+    payment_id = Column(String, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    amount = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class MatchParticipant(Base):
     __tablename__ = "match_participants"
 

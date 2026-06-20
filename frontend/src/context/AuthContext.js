@@ -194,6 +194,28 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {}
   };
 
+  const verifyAndRechargePoints = async (paymentId, amount) => {
+    if (!user || !token) return false;
+    try {
+      const response = await apiFetch('/payments/verify', {
+        method: 'POST',
+        token,
+        json: { payment_id: paymentId, amount },
+      });
+      if (!response.ok) {
+        console.error('결제 검증 실패', response.status);
+        return false;
+      }
+      const updatedUser = await response.json();
+      setUser(updatedUser);
+      await loadUserPointHistory();
+      return true;
+    } catch (e) {
+      console.error('결제 검증 에러', e);
+      return false;
+    }
+  };
+
   const rechargePoints = async (amount, description = '포인트 충전') => {
     if (!user || !token) return false;
 
@@ -278,7 +300,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       user, token, loading, login, signup, logout, fetchUserInfo,
-      points, pointHistory, rechargePoints, usePoints,
+      points, pointHistory, rechargePoints, verifyAndRechargePoints, usePoints,
       reviewedMatches, submitMatchReviews,
       notifications, loadNotifications, markNotificationRead, markAllNotificationsRead,
     }}>
