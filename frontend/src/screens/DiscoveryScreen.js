@@ -11,7 +11,6 @@ const LOCATIONS = ['전체', '강남', '홍대', '신촌', '건대', '잠실', '
 const TIMES = ['전체', '오전 (12시 이전)', '오후 (12~18시)', '저녁 (18시 이후)'];
 
 export default function DiscoveryScreen({ navigation }) {
-  // 날짜 포맷팅 헬퍼 (YYYY-MM-DD)
   const formatDate = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -19,18 +18,16 @@ export default function DiscoveryScreen({ navigation }) {
     return `${year}-${month}-${day}`;
   };
 
-  // 오늘 날짜를 기본값으로 설정
   const [activeDate, setActiveDate] = useState(formatDate(new Date()));
   const [activeGenre, setActiveGenre] = useState('전체');
   const [activeLocation, setActiveLocation] = useState('전체');
   const [activeTime, setActiveTime] = useState('전체');
   const [activeModal, setActiveModal] = useState(null);
-  
+
   const { matches } = useContext(MatchContext);
   const { user, logout, notifications } = useContext(AuthContext);
   const unreadCount = (notifications || []).filter(n => !n.read).length;
 
-  // 날짜 리스트 생성 (오늘부터 14일간)
   const dateList = useMemo(() => {
     const list = [];
     const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
@@ -47,7 +44,6 @@ export default function DiscoveryScreen({ navigation }) {
     }
     return list;
   }, []);
-
 
   const matchTimeFilter = (startTime, filter) => {
     if (filter === '전체') return true;
@@ -86,11 +82,8 @@ export default function DiscoveryScreen({ navigation }) {
   const modalData = getModalData();
 
   const renderDateItem = ({ item }) => (
-    <TouchableOpacity 
-      style={[
-        styles.dateItem, 
-        activeDate === item.full && styles.dateItemActive
-      ]}
+    <TouchableOpacity
+      style={[styles.dateItem, activeDate === item.full && styles.dateItemActive]}
       onPress={() => setActiveDate(item.full)}
     >
       <Text style={[styles.dateDay, activeDate === item.full && styles.dateTextActive]}>
@@ -268,20 +261,23 @@ export default function DiscoveryScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {filteredMatches.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>해당 날짜와 조건에 맞는 매치가 없습니다.</Text>
-          <Text style={styles.emptySubText}>다른 날짜를 선택해보세요!</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredMatches}
-          renderItem={renderMatchCard}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      <View style={styles.listWrapper}>
+        {filteredMatches.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>해당 날짜와 조건에 맞는 매치가 없습니다.</Text>
+            <Text style={styles.emptySubText}>다른 날짜를 선택해보세요!</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredMatches}
+            renderItem={renderMatchCard}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1 }}
+          />
+        )}
+      </View>
 
       {/* 동적 Bottom Sheet 모달 */}
       <Modal
@@ -446,7 +442,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-  // 날짜 선택 섹션
   dateSelectorContainer: {
     paddingVertical: 12,
     borderTopWidth: 1,
@@ -490,6 +485,10 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: '#FFFFFF',
+  },
+  listWrapper: {
+    flex: 1,
+    overflow: 'hidden',
   },
   filterSection: {
     flexDirection: 'row',
