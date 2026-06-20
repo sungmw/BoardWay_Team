@@ -78,6 +78,7 @@ class UserCreate(BaseModel):
     mannerScore: int = 5
 
 class UserResponse(BaseModel):
+    id: int
     email: EmailStr
     nickname: str
     mannerScore: int
