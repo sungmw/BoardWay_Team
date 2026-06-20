@@ -356,10 +356,8 @@ def verify_payment(
         timeout=10,
     )
     if resp.status_code != 200:
-        print(f"[PORTONE] API error status={resp.status_code} payment_id={req.payment_id}")
         raise HTTPException(status_code=400, detail=f"결제 조회 실패 ({resp.status_code})")
     payment = resp.json()
-    print(f"[PORTONE] payment_id={req.payment_id} status={payment.get('status')} amount_total={payment.get('amount', {}).get('total')} customer_id={payment.get('customer', {}).get('customerId')} current_user_id={current_user.id}")
 
     # 2. 결제 상태 검증
     if payment.get("status") != "PAID":
