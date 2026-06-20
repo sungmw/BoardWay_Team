@@ -1,5 +1,5 @@
 import React, { useState, useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity, Modal, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
@@ -223,16 +223,15 @@ export default function DiscoveryScreen({ navigation }) {
         </View>
 
         {/* 날짜 선택 섹션 */}
-        <View style={styles.dateSelectorContainer}>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={dateList}
-            renderItem={renderDateItem}
-            keyExtractor={item => item.full}
-            contentContainerStyle={styles.dateListContent}
-          />
-        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          contentContainerStyle={styles.dateListContent}
+          style={styles.dateSelectorContainer}
+        >
+          {dateList.map(item => renderDateItem({ item }))}
+        </ScrollView>
       </View>
 
       <View style={styles.filterSection}>
