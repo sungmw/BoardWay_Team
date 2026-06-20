@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
@@ -8,6 +8,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login } = useContext(AuthContext);
+  const passwordRef = useRef(null);
 
   const handleLogin = async () => {
     const success = await login(email, password);
@@ -38,14 +39,20 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
         />
-        
+
         <TextInput
+          ref={passwordRef}
           style={styles.input}
           placeholder="비밀번호"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          returnKeyType="done"
+          onSubmitEditing={handleLogin}
         />
 
         <TouchableOpacity style={commonStyles.button} onPress={handleLogin}>

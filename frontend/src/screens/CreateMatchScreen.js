@@ -130,10 +130,9 @@ export default function CreateMatchScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    const isFlexibleChecked = isFlexible;
-    const games = isFlexibleChecked ? ['자율 선택'] : selectedGames;
+    const games = isFlexible ? ['자율 선택'] : selectedGames;
 
-    if (!isFlexibleChecked && games.length === 0) {
+    if (!isFlexible && games.length === 0) {
       notify('알림', '게임을 1개 이상 선택해주세요.');
       return;
     }
@@ -168,9 +167,8 @@ export default function CreateMatchScreen({ navigation }) {
     setRoleModalVisible(false);
     setSubmitting(true);
 
-    const isFlexibleChecked = isFlexible;
-    const games = isFlexibleChecked ? ['자율 선택'] : selectedGames;
-    const gamesLabel = isFlexibleChecked ? '자율 선택' : games.join(', ');
+    const games = isFlexible ? ['자율 선택'] : selectedGames;
+    const gamesLabel = isFlexible ? '자율 선택' : games.join(', ');
 
     // 포인트 선결제 진행
     const pointResult = await usePoints(12000, `[${gamesLabel}] 매치 개설 결제`);

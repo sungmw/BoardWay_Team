@@ -1,4 +1,4 @@
-import React, { useRef, useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, SafeAreaView, TouchableOpacity, Text, Platform } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { notify } from '../utils/dialog';

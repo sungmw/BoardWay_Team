@@ -294,7 +294,7 @@ export const AuthProvider = ({ children }) => {
 
   // apiFetch 가 401 을 만나면 자동 logout 트리거. mount 시 1회 등록.
   useEffect(() => {
-    setUnauthorizedHandler(() => logout);
+    setUnauthorizedHandler(logout);
   }, []);
 
   return (

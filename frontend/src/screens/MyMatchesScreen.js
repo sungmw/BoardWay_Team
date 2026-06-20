@@ -309,14 +309,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
-  expiredBtn: {
-    backgroundColor: '#FFEBEB',
-  },
-  expiredBtnText: {
-    color: colors.error,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
   waitingBtn: {
     backgroundColor: '#F8F9FA',
   },

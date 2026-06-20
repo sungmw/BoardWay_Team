@@ -8,7 +8,7 @@ import { notify } from '../utils/dialog';
 
 export default function MatchReviewScreen({ route, navigation }) {
   const { match } = route.params;
-  const { user, rechargePoints, submitMatchReviews } = useContext(AuthContext);
+  const { user, submitMatchReviews } = useContext(AuthContext);
 
   const participants = match.participants.filter(p => p.nickname !== user.nickname);
   const hostNickname = match.host;

@@ -7,7 +7,7 @@ import { AuthContext } from '../context/AuthContext';
 import { notify, confirmAction } from '../utils/dialog';
 
 export default function MyPageScreen({ navigation }) {
-  const { user, logout, points, rechargePoints } = useContext(AuthContext);
+  const { user, logout, points } = useContext(AuthContext);
   const [rechargeModalVisible, setRechargeModalVisible] = useState(false);
   const [mannerModalVisible, setMannerModalVisible] = useState(false);
 
@@ -26,14 +26,6 @@ export default function MyPageScreen({ navigation }) {
   const handleRecharge = (amount) => {
     setRechargeModalVisible(false);
     navigation.navigate('PaymentWebView', { amount });
-  };
-
-  // 주사위 아이콘 결정 함수 — Ionicons 이름은 숫자가 아니라 영어 단어
-  const getDiceIcon = (score) => {
-    const numToWord = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
-    const roundedScore = Math.round(score);
-    if (roundedScore <= 1) return "dice-one";
-    return `dice-${numToWord[Math.min(roundedScore, 6)]}`;
   };
 
   return (

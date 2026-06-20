@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { colors } from '../theme/colors';
 import { commonStyles } from '../theme/styles';
@@ -12,6 +12,9 @@ export default function SignUpScreen({ navigation }) {
   const [nickname, setNickname] = useState('');
 
   const { signup } = useContext(AuthContext);
+  const nicknameRef = useRef(null);
+  const passwordRef = useRef(null);
+  const passwordConfirmRef = useRef(null);
 
   const handleSignUp = async () => {
     if (password !== passwordConfirm) {
@@ -42,38 +45,52 @@ export default function SignUpScreen({ navigation }) {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            returnKeyType="next"
+            onSubmitEditing={() => nicknameRef.current?.focus()}
+            blurOnSubmit={false}
           />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>닉네임</Text>
           <TextInput
+            ref={nicknameRef}
             style={styles.input}
             placeholder="사용하실 닉네임"
             value={nickname}
             onChangeText={setNickname}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            blurOnSubmit={false}
           />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>비밀번호</Text>
           <TextInput
+            ref={passwordRef}
             style={styles.input}
             placeholder="비밀번호 입력"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            returnKeyType="next"
+            onSubmitEditing={() => passwordConfirmRef.current?.focus()}
+            blurOnSubmit={false}
           />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>비밀번호 확인</Text>
           <TextInput
+            ref={passwordConfirmRef}
             style={styles.input}
             placeholder="비밀번호 재입력"
             value={passwordConfirm}
             onChangeText={setPasswordConfirm}
             secureTextEntry
+            returnKeyType="done"
+            onSubmitEditing={handleSignUp}
           />
         </View>
 
