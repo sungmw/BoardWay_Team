@@ -152,7 +152,40 @@
 
 ---
 
-## 9. 다음 작업
+## 9. Git 커밋 & 배포 워크플로우
+
+> 세션 시작 때마다 헷갈리지 않게 여기 정리해둠.
+
+### Remote 구조
+| remote | URL | 용도 |
+|--------|-----|------|
+| `origin` | https://github.com/940614/BoardWay.git | 팀 코드 저장소 |
+| `mine` | https://github.com/sungmw/BoardWay_Team.git | **Vercel 연동** (웹 자동 배포) |
+
+### 커밋 & 푸시 순서
+```bash
+# 1. 파일 스테이징
+git add <파일>
+
+# 2. 커밋
+git commit -m "설명"
+
+# 3. 두 remote 모두 푸시
+git push origin main   # 팀 저장소
+git push mine main     # Vercel 자동 배포 트리거
+```
+
+> `mine`에 푸시해야 Vercel(웹)이 자동 배포됨. `origin`만 푸시하면 웹에 반영 안 됨.
+
+### 안드로이드 배포
+```bash
+cd frontend
+eas build --platform android --non-interactive
+```
+
+---
+
+## 10. 다음 작업
 
 **Phase 1, 2 주요 항목 완료.** Phase 3(출시 준비) 또는 추가 기능으로 진입 가능.
 
