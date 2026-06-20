@@ -8,9 +8,8 @@ const STORE_ID = 'store-0e467d81-2b19-4dd4-b37f-8f3275ec7458';
 const CHANNEL_KEY = 'channel-key-a6e6ccf6-fbf6-4689-b036-78f7de1c866f';
 
 // 웹 전용: PortOne SDK를 직접 브라우저에서 호출
-function PaymentWebScreen({ amount, user, verifyAndRechargePoints, navigation }) {
+function PaymentWebScreen({ amount, user, verifyAndRechargePoints, navigation, paymentId }) {
   const [status, setStatus] = useState('loading');
-  const paymentId = `BOARDWAY-${user?.id || 0}-${Date.now()}`;
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -77,9 +76,8 @@ function PaymentWebScreen({ amount, user, verifyAndRechargePoints, navigation })
 }
 
 // 모바일 전용: WebView로 결제창 띄우기
-function PaymentNativeScreen({ amount, user, verifyAndRechargePoints, navigation }) {
+function PaymentNativeScreen({ amount, user, verifyAndRechargePoints, navigation, paymentId }) {
   const { WebView } = require('react-native-webview');
-  const paymentId = `BOARDWAY-${user?.id || 0}-${Date.now()}`;
 
   const html = `<!DOCTYPE html>
 <html>
@@ -165,7 +163,22 @@ export default function PaymentWebViewScreen({ route, navigation }) {
   const { amount } = route.params;
   const { user, verifyAndRechargePoints } = useContext(AuthContext);
 
-  const props = { amount, user, verifyAndRechargePoints, navigation };
+  // user가 없으면 결제 불가 — 로그인 전 진입 방어
+  const paymentId = React.useMemo(
+    () => `BOARDWAY-${user?.id || 0}-${Date.now()}`,
+    [user?.id]
+  );
+
+  useEffect(() => {
+    if (!user) {
+      notify('알림', '로그인이 필요합니다.');
+      navigation.goBack();
+    }
+  }, [user]);
+
+  if (!user) return null;
+
+  const props = { amount, user, verifyAndRechargePoints, navigation, paymentId };
 
   return (
     <SafeAreaView style={styles.container}>
